@@ -1,0 +1,42 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: doppel-evaluate-ctgan
+  namespace: doppel
+  labels:
+    project: doppel
+    component: evaluation
+    track: track2
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        project: doppel
+        component: evaluation
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: evaluation
+          image: doppel/evaluation-neural:0.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - evaluation.eval_runner
+            - --generator
+            - ctgan
+            - --seed
+            - "42"
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/output
+              subPath: output
+            - name: shared-storage
+              mountPath: /app/results
+              subPath: results
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: doppel-shared-pvc

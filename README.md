@@ -278,7 +278,7 @@ No cloud resources are in use yet — the pipeline is designed to run entirely o
 |---|---|---|---|---|
 | Phase 1 (1–2) | ✅ Generator contract, shared codec, validator, statistical baseline | ✅ Protocol defined, task selected | ✅ Cleaned dataset, schema, `.gitignore` |  ✅ Set up the local Docker and Minikube/Kubernetes environment, Created and tested the base Docker image, Established integration contracts, including shared schemas and file paths, Coordinated generator input/output requirements with other tracks.|
 | Phase 2 (3–7) | ✅ CTGAN/TVAE, in-train model selection (DCR), initial sweep, contract reconciled with Track 4 · diffusion in progress | ✅ Fidelity/utility/privacy code (self-tested on stand-in data) | — | ✅ Statistical & CTGAN containerization, Kubernetes Jobs, Streamlit dashboard scaffold, local and Minikube testing. |
-| Phase 3 (8–11) | Not started | Blocked on Track 1 output | — | Not started |
+| Phase 3 (8–11) | Not started | Blocked on Track 1 output | — | Phase 3 of 4 (Weeks 8–11 of a 14-week plan). Track 1 provides statistical and neural synthetic-data generators, Track 2 provides fidelity, utility, and privacy evaluation, and Track 3 provides the cleaned dataset and preprocessing code. Track 4 has integrated Docker images, Kubernetes generation and evaluation Jobs, shared persistent storage, and a Streamlit dashboard with evaluation and Pareto analysis. The validated Minikube workflow uses Gaussian Copula and CTGAN with seed 42. Jobs are currently launched individually; Kubernetes preprocessing and fully automated stage orchestration remain limitations.|
 | Phase 4 (12–14) | Not started | Not started | Not started | Not started |
 
 ---

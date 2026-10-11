@@ -1,0 +1,52 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doppel-dashboard
+  namespace: doppel
+  labels:
+    project: doppel
+    component: dashboard
+    track: track4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      project: doppel
+      component: dashboard
+  template:
+    metadata:
+      labels:
+        project: doppel
+        component: dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: doppel/dashboard:0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8501
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/output
+              subPath: output
+            - name: shared-storage
+              mountPath: /app/results
+              subPath: results
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: doppel-shared-pvc

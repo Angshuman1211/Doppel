@@ -51,6 +51,7 @@ GENERATORS = _LazyRegistry({
     "independent_marginals": "copula:IndependentMarginals",
     "ctgan": "ctgan_tvae:CTGAN",
     "tvae": "ctgan_tvae:TVAE",
+    "tabular_diffusion": "diffusion:TabularDiffusion",
 })
 
 

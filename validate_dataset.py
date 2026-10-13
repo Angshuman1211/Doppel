@@ -41,6 +41,9 @@ REQUIRED_NON_NULL_COLUMNS = [
 
 EXPECTED_SPLIT_VALUES = {"train", "holdout"}
 
+# ICD-9 codes are identifiers, not numbers: read as int, '0389' becomes 389 (P-005).
+CODE_COLUMNS = {"icd9_primary": str}
+
 
 def check(condition, message, errors):
     if not condition:
@@ -86,6 +89,18 @@ def validate_icd9_codes_json(df, errors):
     check(bad == 0, f"{bad} row(s) in icd9_codes fail json.loads() — must be valid JSON per ADR-004", errors)
 
 
+def validate_icd9_primary_is_first_code(df, errors):
+    """Guards P-005: if icd9_primary is ever read as a number, '0389' becomes 389 and this check fails."""
+    codes = df["icd9_codes"].map(json.loads)
+    mismatched = sum(str(p) != c[0] for p, c in zip(df["icd9_primary"], codes) if c)
+    check(
+        mismatched == 0,
+        f"{mismatched} row(s) where icd9_primary differs from the first entry of icd9_codes — "
+        "read the column with dtype=str (P-005)",
+        errors,
+    )
+
+
 def validate_split_values(df, errors):
     actual = set(df["split"].dropna().unique())
     check(
@@ -120,13 +135,14 @@ def main():
         print(f"FAIL: {CSV_PATH} not found — run preprocess_mimic_demo.py first", file=sys.stderr)
         sys.exit(1)
 
-    df = pd.read_csv(CSV_PATH)
+    df = pd.read_csv(CSV_PATH, dtype=CODE_COLUMNS)
 
     validate_contract_schema(errors)
     validate_required_columns(df, errors)
     if not errors:
         validate_no_unexpected_nulls(df, errors)
         validate_icd9_codes_json(df, errors)
+        validate_icd9_primary_is_first_code(df, errors)
         validate_split_values(df, errors)
         validate_no_subject_leakage(df, errors)
         validate_sanity_bounds(df, errors)

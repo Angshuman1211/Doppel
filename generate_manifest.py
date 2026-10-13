@@ -20,7 +20,11 @@ OUT_DIR = Path(os.environ.get("OUT_DIR", "./output"))
 CSV_PATH = OUT_DIR / "mimic_demo_clean.csv"
 MANIFEST_PATH = OUT_DIR / "mimic_demo_clean.manifest.json"
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+
+# ICD-9 codes are identifiers, not numbers: read as int, '0389' (septicemia) becomes 389, a different
+# code, and it no longer matches the first entry of icd9_codes. See P-005.
+CODE_COLUMNS = {"icd9_primary": str}
 
 # pandas dtype -> a small set of contract-friendly type names
 DTYPE_MAP = {
@@ -46,7 +50,7 @@ def get_git_commit() -> str:
 
 
 def main():
-    df = pd.read_csv(CSV_PATH)
+    df = pd.read_csv(CSV_PATH, dtype=CODE_COLUMNS)
 
     columns = []
     for col in df.columns:

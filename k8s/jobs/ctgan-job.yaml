@@ -1,14 +1,22 @@
+
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: doppel-ctgan
   namespace: doppel
+  labels:
+    project: doppel
+    component: generation
+    generator: ctgan
+    track: track4
 spec:
   backoffLimit: 1
   template:
     metadata:
       labels:
         app: doppel-ctgan
+        project: doppel
+        component: generation
     spec:
       restartPolicy: Never
       containers:
@@ -25,3 +33,11 @@ spec:
             - "42"
             - --param
             - epochs=1
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/output
+              subPath: output
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: doppel-shared-pvc

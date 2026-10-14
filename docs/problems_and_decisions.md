@@ -202,27 +202,32 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 
 ---
 
-### ADR-025 — Track 2 evaluates five named arms, with TVAE as the positive control
-**Decision:** `evaluation/arms.py` defines each evaluated configuration as a generator plus hyperparameters: `independent_marginals`, `gaussian_copula` (Ledoit-Wolf), `gaussian_copula_shrink025`, `ctgan` (300 epochs) and `tvae` (300 epochs). `--generator` takes an arm name. The runner regenerates each arm's data on every run into `output/synthetic/eval/<arm>/`, and shadow generators are fitted with Track 1's `synthesize` and cached on disk under a key made from the `generators/` source, the dataset, the hyperparameters, the seed and the exact member rows.
-**Why:** Track 1 carried the 0.25-shrinkage copula and 300-epoch CTGAN into Phase 3 and proposed TVAE as the membership positive control (ADR-024). A configuration has to be a named, reproducible object for runs to be comparable, and the always-regenerate rule and content-keyed cache stop results mixing generator code versions (P-015).
-**Impact:** `run_id` and `generator_name` in the results JSON are arm names, so Track 4 groups by arm. Evaluating a retuned or new generator is one line in `arms.py`, and everything downstream has to be rerun when Track 1's next sweep changes a config. `ctgan` and `rdt` are BUSL-1.1, source-available and non-production, so the neural arms carry that licence note.
-**Branch:** `track2-phase3-full-evaluation`
+### ADR-028 — The diffusion arm is a TabDDPM-style model on the shared modeling frame
+**Decision:** `generators/diffusion.py` implements `tabular_diffusion`: the 44 numeric columns go through the copula's rank-to-normal transform and then Gaussian diffusion (noise prediction, cosine schedule), and each of the 66 categorical and binary columns gets multinomial diffusion, with one MLP denoiser predicting both. Training uses the simplified objective, MSE on the Gaussian part plus cross-entropy on the clean class, rather than the full variational bound. Defaults: 3000 steps, 1000 timesteps, 2 hidden layers of 256, AdamW at 1e-3. CPU, one torch thread, seeded from the `rng` like the other neural arms.
+**Why:** This is the design recorded in [`A1_generative_modeling.md`](A1_generative_modeling.md), following Kotelnikov et al. (2023). Reusing the codec's frame and the copula's numeric transform keeps ADR-008's "same encoding for every generator" intact, so a difference in the benchmark is the model, not the preprocessing. The simplified loss is what most TabDDPM implementations use and it avoids a second source of bugs on a model that already has two coupled processes. TabSyn-style latent diffusion was rejected in A1 for needing a VAE trained first on 94 rows.
+**Impact:** The blueprint's third generator family exists, so Track 2 can evaluate all three. One fit is about 46 s (40 s training, 6 s sampling), comparable to CTGAN. Output is byte-identical on a rerun with the same seed and passes the Stage 2 contract. The arm's behaviour across settings, and the fact that no setting clears the A2 acceptance bar, is ADR-029.
+**Branch:** `track1-phase3-diffusion-and-tuning`
 
 ---
 
-### ADR-026 — Membership reporting adds pooled TPR at low FPR and a per-record report; a neighbourhood-count attack was tried and dropped
-**Decision:** Every membership attack reports the pooled true-positive rate at 5% and 1% false-positive rate next to its AUROC. `evaluation.mia_calibration` reports each record's attack advantage against its number of once-seen codes. A feature counting synthetic rows in each record's neighbourhood was not added to the attack. The privacy axis of the Pareto frontier stays the worst-case AUROC.
-**Why:** The survey listed both as gaps (Carlini et al. on low false-positive rates, Meeus et al. on vulnerable records). TVAE's AUROC is a moderate 0.68 while its pooled TPR at 1% FPR is 0.058 against a floor of 0.009, so AUROC alone understates that it identifies a few records confidently. The count feature changed AUROC by −0.013 to 0.000 in 3 seeds, so it adds nothing. TPR is not the Pareto axis because the 1% figure rests on about 376 pooled non-members and carries a seed sd of about 0.02.
-**Impact:** Membership blocks in the results JSON carry `tpr_at_fpr_5pct` and `tpr_at_fpr_1pct`. Two survey gaps stay open: a density-based attack and a release-only attacker. Revisit TPR as an axis if a larger dataset gives a stabler estimate.
-**Branch:** `track2-phase3-full-evaluation`
+### ADR-029 — Phase 3 tuning outcome and the configs for the final comparison
+**Decision:** The final comparison runs these arms: `gaussian_copula` at shrinkage 0.10 (tuned) alongside Ledoit-Wolf (untuned reference), `ctgan` at 300 epochs with 64×64 networks and embedding 32 (tuned), `tvae` at 300 epochs (unchanged, as the memorization control), `tabular_diffusion` at 3000 steps (best fidelity, memorizes) and `tabular_diffusion` at 1000 steps with dropout 0.2 (the only guard-passing setting), plus `independent_marginals` as the floor. No diffusion config meets the A2 acceptance bar of beating the copula's correlation while passing the memorization guard, and that stands as the reported result.
+**Why:** From 390 fits across two grids ([`phase3_tuning_result.md`](phase3_tuning_result.md)):
+- **Copula:** correlation keeps improving as shrinkage falls, to 0.111 at λ = 0.10, with near-copy 0.035, still below the 0.059 that real unseen rows score. Best correlation of any arm in the project.
+- **CTGAN:** 64×64 networks cut mean JSD from 0.103 to 0.076, and correlation stayed at the independent floor (0.177 to 0.182 against 0.175) at every size and length. More training adds nothing.
+- **TVAE:** fails the guard at every setting, and training less makes it worse (50 epochs: 94.9% near-copies). The strongest regularization tested reaches 0.543, five times the guard.
+- **Diffusion:** the fidelity and memorization axes cannot be satisfied together. Every config clearing the guard scores mean JSD ≥ 0.374, worse than independent sampling; every config below 0.23 copies more than a fifth of its rows. Weight decay changed nothing; dropout is the only lever that moves it.
+
+**Impact:** All three blueprint families now exist, and the honest headline is that on 94 rows each neural family fails in one of two ways while the classical baseline is unbeaten on both axes at once. Both diffusion configs go to Track 2 so the benchmark shows the trade-off rather than one chosen point, and the 3000-step config joins TVAE as a generator that verifiably memorizes, which is useful to the membership attack. Track 2's `evaluation/arms.py` needs `gaussian_copula_shrink010`, a tuned `ctgan_small`, `tabular_diffusion` and `tabular_diffusion_reg`; their five-arm Phase 3 numbers were produced before this tuning and the neural rows need a rerun, which their own write-up already flags.
+**Branch:** `track1-phase3-diffusion-and-tuning`
 
 ---
 
-### ADR-027 — The Pareto frontier is reported with a sensitivity table and read against the positive control
-**Decision:** `evaluation.pareto` recomputes frontier membership under eight axis sets (a correlation axis, one classifier, one attack at a time, no utility axis) and prints the privacy ordering per attack. A frontier is not reported without that table. This extends ADR-018.
-**Why:** With five arms and seed sds this large every arm is non-dominated, which read alone looks like five wins. The sensitivity table showed TVAE's place depends only on utility (frequency 0.00 without that axis) and that a 4-column privacy axis would make TVAE look safest (0.98).
-**Impact:** Track 4's dashboard should show pairwise dominance probabilities and the sensitivity, not only the frontier set, and the report should not rank generators from the frontier. Rerun when the diffusion model or a retuned generator arrives.
-**Branch:** `track2-phase3-full-evaluation`
+### ADR-030 — The dashboard takes uploads instead of reading the pipeline's output directories
+**Decision:** `dashboard/app.py` no longer scans `output/synthetic/` or `results/`. Datasets and evaluation reports are uploaded through the page: synthetic CSVs and an optional real cleaned CSV in the sidebar, evaluation report JSONs in the evaluation tab. A new "Compare to Real Data" tab scores an uploaded synthetic file against an uploaded real one. Requested by the course instructor through Angshuman; the file is Track 4's, so Anshuman needs to know it changed.
+**Why:** A dashboard that only works next to a populated `output/` directory can't be shown anywhere else, and it hides the question it should answer, which is whether a given synthetic file is any good. Uploading makes the demo self-contained and lets anyone score a file the pipeline didn't produce.
+**Impact:** The dashboard image is unchanged: it still ships `app.py` with streamlit and pandas, so the comparison tab computes fidelity itself, and the numbers match `evaluation.fidelity_metrics` exactly on all four generators (0.0156, 0.0854, 0.1091, 0.0423 at seed 42). When the dashboard is started from a repo checkout it imports Track 2's metric and Track 1's `check_contract` instead and says so on screen. The PVC mounts in `k8s/dashboard-deployment.yaml` are no longer needed by the dashboard, which is Track 4's call to keep or drop. The copy check reports the share of rows whose categorical profile matches a real patient, with the rate for real unseen rows shown next to it as the reference (5.7% on this dataset, against 33.0% for TVAE and 41.5% for the diffusion arm at seed 42); matching on every column including labs was tried first and is useless, since it reports 0% even for generators that demonstrably memorize.
+**Branch:** `track1-phase3-diffusion-and-tuning`
 
 ---
 
@@ -336,47 +341,17 @@ sklearn.exceptions.NotFittedError: This SimpleImputer instance is not fitted yet
 
 ---
 
-### P-014 — The runner read synthetic CSVs with a plain `pd.read_csv`, so `icd9_primary` lost its leading zero
-**Week/Date:** 2026-09-24 (introduced 2026-09-19)
-**Problem:** Track 1's P-005 says `icd9_primary` must be read as text and that Track 2's scripts already read real and synthetic CSVs that way. My runner didn't: `load_synthetic` used a plain `pd.read_csv`, so `icd9_primary` came back as int64 and codes like `0389` became `389`. On the copula seed-42 file, 17 of 94 rows no longer matched the real column's strings. On that file the `icd9_primary` JSD was 0.284 instead of 0.142 and the mean JSD 0.0186 instead of 0.0158. The same column is a categorical predictor in the attribute attack, so those inputs were mismatched too. Every Phase 2 fidelity and attribute number was affected. Utility was not (the column is dropped) and neither were the membership attacks (shadow generators return decoded frames, not re-read CSVs).
-**Fix:** `load_synthetic` reads through `generators.schema.load_real`, which pins the dtype. Fidelity numbers in [`full_evaluation_result.md`](full_evaluation_result.md) are not comparable to the Phase 2 ones for this reason and because the copula's rows are new draws since P-013.
-**Lesson:** When another track logs an interface trap and says my code already handles it, check my code. I took that sentence on trust.
+### P-019 — Track 3's dataset manifest declared `icd9_primary` as an integer
+**Week/Date:** 2026-10-08
+**Problem:** `generate_manifest.py` inferred column types from `pd.read_csv()` with no dtype pinned, so `icd9_primary` came back as int64 and the manifest published it as `"dtype": "integer"`. That is the P-005 trap written into the data contract: any consumer following the manifest reads `0389` as 389, a different ICD-9 code, and the column stops matching the first entry of `icd9_codes`. `validate_dataset.py` read the CSV the same way, so its checks agreed with the manifest and the error was invisible.
+**Fix:** Both scripts now read with `dtype={"icd9_primary": str}`, the manifest is regenerated (`"dtype": "string"`, schema_version 1.1), and `validate_dataset.py` gained `validate_icd9_primary_is_first_code`, which compares the column against the first entry of `icd9_codes`. Checked both ways: the guard is silent on the correct read and reports 25 mismatched rows on the buggy one. Validation passes on the current dataset.
+**Lesson:** A contract that is generated by inspecting data inherits whatever the reader got wrong. The regression check belongs next to the generator, comparing two fields that must agree, not in the reader's own assumptions.
 
 ---
 
-### P-015 — The runner reused a synthetic CSV made by older generator code
-**Week/Date:** 2026-09-24
-**Problem:** `eval_runner` used any existing `output/synthetic/<generator>_seed<n>.csv`. After Track 1's Cholesky fix (P-013) I reran copula seed 42 and the membership score moved from 0.6562 to 0.6486 while fidelity and TSTR did not move at all. The membership attack refits the generator each time, so it used the new code, and the other metrics read the old file. Results were a mix of old and new draws.
-**Fix:** The runner always regenerates into `output/synthetic/eval/<arm>/`. Shadow-generator fits are cached on disk under `output/synthetic/shadow_cache/`, keyed by a hash of `generators/*.py`, the dataset CSV, the hyperparameters, the seed and the exact member rows, so changing any of them refits. Cold and warm cache runs give byte-identical results JSON.
-**Lesson:** A cache needs a key that changes when what it caches changes. Reuse by filename alone is the same failure P-008 was about, one layer up.
-
----
-
-### P-016 — I killed a working sweep because slow CTGAN looked like a hang
-**Week/Date:** 2026-09-24
-**Problem:** I launched the 100-run sweep with 12 workers. After about 25 minutes there were no results and each worker showed roughly 460 CPU-seconds, so I called it stuck and killed it. It was working. A 94-row CTGAN fit takes 48 s alone but 6.8 minutes with six running together (8.5× slower), so aggregate throughput at six workers is about 70% of running the fits one after another on this machine. The kill cost about 25 minutes.
-**Fix:** Relaunched at 6 workers, added the shadow-fit cache (P-015) so calibration and the direct check reuse the runner's fits instead of refitting CTGAN.
-**Lesson:** Before deciding a job is hung, compare per-process CPU growth against a solo timing and a measured concurrency scaling, since a slow run and a hung run look the same from outside. For CTGAN on this machine, more workers did not help.
-
----
-
-### P-017 — Review of the Phase 2 delivery layer found spec gaps between the Jobs and the code they run (open)
-**Week/Date:** 2026-09-24
-**Problem:** Reading Track 3's and Track 4's Phase 2 files against the scripts they run found six gaps. None was run, because the Docker daemon was not available.
-1. The preprocessing Job sets no `RAW_DIR`, the script's default is the working directory, and the raw data is mounted at `/app/raw`. Under the Job's environment the script fails with `FileNotFoundError: 'PATIENTS.csv'`, which I reproduced locally; with `RAW_DIR=raw` it proceeds.
-2. The volumes the Job names (`mimic-raw-data-pvc`, `doppel-processed-data-pvc`) are not defined anywhere in `k8s/`.
-3. The statistical and CTGAN Jobs mount no volume, so the generated CSV and manifest stay inside the container.
-4. There is no `.dockerignore` and both generator Dockerfiles run `COPY . /app`, so the whole build context goes into the image, including gitignored raw MIMIC files if they are present.
-5. `dashboard/requirements.txt` is unpinned. In a fresh venv it resolved pandas 3.0.6, whose DLL this machine's Application Control policy blocked; the dashboard ran fine with the team's pandas 2.3.3.
-6. The CTGAN Job passes `--param epochs=1`, so it trains one epoch and not the 300-epoch config Track 1 carried into Phase 3.
-**Fix:** None applied; the files belong to Tracks 3 and 4. Proposed: set `RAW_DIR=/app/raw` in the Job, define or document the volumes, mount an output volume in the generator Jobs, add a `.dockerignore` excluding raw CSVs, `output/`, `results/`, `.git` and virtualenvs, and pin the dashboard requirements to the root pins. Details in [`C2_data_validation.md`](C2_data_validation.md) and [`D2_system_integration.md`](D2_system_integration.md).
-**Lesson:** A Job spec and the script it runs each look fine alone, so they have to be checked together, and a delivery layer that has never been run has not been checked at all.
-
----
-
-### P-018 — The dataset validator cannot see class-coverage gaps between splits (open)
-**Week/Date:** 2026-09-24
-**Problem:** `validate_dataset.py` passes the committed dataset even though `HISPANIC/LATINO - PUERTO RICAN` is in 15 of 35 holdout rows and 0 of 94 train rows, the gap behind P-003. It checks required columns, nulls, JSON, split values, patient leakage and bounds, and nothing about whether categorical levels in the holdout also occur in train. In fault-injection tests it caught 7 of 7 faults it was designed for ([`dataset_validation_result.md`](dataset_validation_result.md)).
-**Fix:** None applied; the file is Track 3's. Proposed: for each categorical column, warn or fail when a holdout level is absent from train, and consider a stratified patient-level split so the main categorical levels appear in both.
-**Lesson:** A validator checks what its author has already been bitten by, so a known-issues list is a source of checks. The ethnicity gap was on Phase 1's list and never became one.
-
+### P-020 — The generator Jobs can't deliver output, and the images would copy the whole working tree (open, Track 4)
+**Week/Date:** 2026-10-08
+**Problem:** Found while checking the Phase 2 containers against the generation stage. Four issues, all in Track 4's files, none fixed here: (1) there is no `.dockerignore` and both generator Dockerfiles do `COPY . /app`, so a local `.venv` (1.0 GB here), `.git` and generated output go into the build context and the image; (2) neither Job mounts a volume, so the synthetic CSV and its manifest are written inside the container and disappear when the Job ends, which means Stage 3 can never read them, and `--out-dir` and `--real-csv` exist for exactly this; (3) the Jobs don't run the configs the sweep selected, with `ctgan-job.yaml` passing `epochs=1` and the statistical Job using default shrinkage instead of the carried-forward setting; (4) no resource requests or limits, so a CTGAN Job can take whatever the node has.
+**Fix:** None by Track 1, by agreement: these are Track 4's files and are reported rather than changed. Track 1's side is ready for them, since the CLI takes `--real-csv` and `--out-dir`, writes nothing when the contract fails, and pins its dependencies. Docker was not running on this machine, so the images could not be built or the "same bytes in the container" check run here.
+**Status 2026-10-13:** Track 4's Phase 3 delivery (PR #10) closed (1) and (2): a `.dockerignore` exists and both generator Jobs mount `doppel-shared-pvc` at `/app/output`. Still open: (3) `ctgan-job.yaml` still passes `epochs=1` and the statistical Job still runs default shrinkage rather than the configs in ADR-029, and (4) none of the six Jobs sets resource requests or limits.
+**Lesson:** A Job that runs a generator successfully and leaves no file behind still fails the pipeline. Worth checking what a stage hands to the next stage, not only that its command exits 0.

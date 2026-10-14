@@ -14,7 +14,7 @@
 
 Doppel trains families of synthetic Electronic Health Record generators on the MIMIC-III Clinical Database Demo — a statistical baseline (Gaussian copula), a GAN-family and a VAE model (CTGAN, TVAE), and a planned tabular diffusion model — and scores every one on the same fidelity, downstream-utility and privacy-attack protocol, so results are comparable instead of being separate numbers from separate papers. Four generator configurations plus a no-dependence floor are built and have been evaluated over 20 seeds each; the diffusion model has not been built. **The privacy attacks are validated against a real generator that memorizes: TVAE scores a worst-case membership AUROC of 0.680 against 0.637 to 0.651 for the other arms (p < 0.0001 for each pair), while a 4-column attack rates it the safest generator of all (0.503).**
 
-> **Status (2026-09-24):** Phase 3 of 4 on a 14-week plan that started 2026-09-17. Data engineering is done through Phase 2 and evaluation through Phase 3, for the generators that exist. Generative modeling has the statistical baseline, CTGAN and TVAE with an initial sweep; the diffusion model is not built. Systems has Dockerfiles, Kubernetes Jobs and a dashboard scaffold for preprocessing and generation, but no evaluation stage, no multi-stage pipeline, and nothing in the repository shows any of it running on a cluster.
+> **Status:** Phase 1 of 4 (Weeks 1–2 of a 14-week plan). Data engineering and evaluation tracks are done for this phase. All three generator families now exist (statistical, GAN/VAE, diffusion) and have been tuned. Results 2–4 were produced by running the evaluation code against **real data used as a synthetic-data stand-in**. Results 5–7 are real synthetic data.
 
 ---
 
@@ -81,10 +81,10 @@ Hospitals want to share patient data for research without violating privacy, and
 
 | Layer | What it does |
 |---|---|
-| Data Prep (Track 3) | Loads 7 MIMIC-III Demo tables, builds one row per hospital admission (demographics, labs, ICD-9 codes, LOS), splits 80/20 by patient to avoid leakage, and writes a clean CSV, lookup tables, and a manifest checked against a JSON schema. `validate_dataset.py` then checks columns, null patterns, bounds, ICD-9 JSON and patient leakage. |
-| Generation (Track 1) | Encodes the `train` split into one shared 110-column modeling frame (ICD-9 codes as multi-hot plus a rare-code tail), fits a generator on it, and decodes back to the exact schema of the cleaned CSV. Every output is checked against a written contract before it's saved. Hyperparameters are chosen inside train, with a distance-to-closest-record memorization check, and never on the holdout. |
-| Evaluation (Track 2) | Scores any dataset matching that schema on fidelity (JS divergence, correlation, KS tests), downstream utility (train-on-synthetic, test-on-real AUROC), and privacy (shadow-model membership inference with three attacks, and attribute inference), and writes one contract JSON per generator and seed. Results are read against a ceiling, a floor and a positive control, and summarized as a Pareto frontier. |
-| Systems (Track 4) | Dockerfiles and Kubernetes Jobs for preprocessing and for the statistical and CTGAN generators, three JSON schemas that define the contracts between stages, and a Streamlit scaffold that lists generated datasets and their manifests. |
+| Data Prep (Track 3) | Loads 7 MIMIC-III Demo tables, builds one row per hospital admission (demographics, labs, ICD-9 codes, LOS), splits 80/20 by patient to avoid leakage, and writes a single clean CSV plus two lookup tables. |
+| Generation (Track 1) | Encodes the `train` split into one shared 110-column modeling frame (ICD-9 codes as multi-hot plus a rare-code tail), fits a generator on it, and decodes the samples back to the exact schema of the cleaned CSV. Every output is checked against a written contract before it's saved. All three families are built (Gaussian copula, CTGAN/TVAE, tabular diffusion), and hyperparameters are chosen inside train with a memorization check (DCR), never on the holdout. |
+| Evaluation (Track 2) | Scores any dataset matching that schema on fidelity (JS divergence, correlation preservation, KS tests), downstream utility (train-on-synthetic/test-on-real AUROC), and privacy (shadow-model membership inference, attribute inference). |
+| Aggregation (Track 4) | Docker images per stage, Kubernetes generation and evaluation Jobs sharing a persistent volume, and a Streamlit dashboard. The dashboard takes uploaded datasets and evaluation reports, scores a synthetic file against the real one, and renders the fidelity–utility–privacy comparison and Pareto frontier. |
 
 ---
 
@@ -158,22 +158,32 @@ All five arms are on the frontier (bootstrap frequency 0.81 to 0.97, no pairwise
 
 > **Honest scope:** there is no evaluation container or Job and no multi-stage pipeline. Reading the Job specs against the scripts they run found six gaps, among them a preprocessing Job that would look for the raw data in the wrong directory, undefined volumes, and generator Jobs whose output is lost with the pod (P-017; [`docs/D2_system_integration.md`](docs/D2_system_integration.md)). The previous version of this README's Track 4 roadmap entry claimed local and minikube testing, which can't be checked from the repository.
 
+### 7. Diffusion generator and final tuning (Track 1): no neural arm works at n = 94
+
+The third family now exists, and 390 fits across two grids tuned every arm. Best setting per family, selected inside train:
+
+| Arm | DCR ratio | Near-copy rate | Mean JSD | Corr. diff | Verdict |
+|---|---|---|---|---|---|
+| `gaussian_copula`, λ = 0.10 | 1.025 | 0.035 | 0.020 | **0.111** | faithful, doesn't copy |
+| `ctgan`, 300 epochs, 64×64 | 1.139 | 0.002 | 0.076 | 0.182 | doesn't copy, learns no dependence |
+| `tvae`, 300 epochs, l2scale 1e-3 | 0.716 | 0.543 | 0.117 | 0.134 | memorizes at every setting tested |
+| `tabular_diffusion`, 3000 steps | 0.532 | 0.804 | **0.036** | 0.156 | best neural fidelity, copies 80% of rows |
+| `tabular_diffusion`, 1000 steps + dropout 0.2 | 1.159 | 0.084 | 0.374 | 0.168 | stops copying, loses the fidelity |
+
+> **Honest scope:** still in-sample selection numbers, not the holdout benchmark. Tuning did not rescue either neural family: shrinking CTGAN improved its marginals by a quarter and left correlation at the no-dependence floor, TVAE got worse with less training, and across 14 diffusion settings every config that stopped copying scored worse marginals than independent sampling. This is a small-data result, not a verdict on these architectures: 94 rows against 110 modeled columns is far outside their intended regime. Full writeup: [`docs/phase3_tuning_result.md`](docs/phase3_tuning_result.md).
+
 ---
 
 ## Honest limitations
 
-- **The diffusion model doesn't exist.** Track 1 has a design and a build brief in [`docs/A2_generator_training.md`](docs/A2_generator_training.md), and no `generators/diffusion.py`. Every comparison here covers two of the blueprint's three generator families.
-- **The neural generators are untuned.** CTGAN and TVAE run at Track 1's initial 300-epoch defaults. His next sweep may change them, and Track 2's results must then be rerun.
-- **The dataset validator has a blind spot.** It cannot see categorical levels that appear in the holdout but never in train (P-018).
-- **The dataset is tiny.** 94 training rows against 110 modeled columns (d > n), a 35-row holdout with 6 positives, and one ethnicity class missing from train. Seeds resample generators, not patients, so none of the p-values speak to a different sample of patients.
-- **Utility differences are mostly noise.** TSTR has a seed sd of 0.09 to 0.20, larger than the original "within 0.10 of TRTR" threshold, so utility is reported, not gated.
-- **Attack results are proxies.** They are shadow-model numbers from generators fit on 47 rows, and two survey gaps stay open: a density-based attack and a release-only attacker.
-- **No evaluation stage is containerized or orchestrated,** no Kubernetes run is documented, and the Phase 2 Job specs have six gaps found by static review (P-017). The Docker images and Jobs were never built or run when this was written.
-- **Owner review is pending on three docs.** `docs/C2_data_validation.md`, `docs/D1_kubernetes_env_setup.md` and `docs/D2_system_integration.md` were written by Track 2 from the repository and the checks it ran, not by their owners.
-- **Cost:** a 94-row CTGAN fit takes 48 s alone on the evaluation laptop and about 6.8 minutes with six running together, so the neural arms are slow to evaluate.
-- **The neural dependencies are source-available, not open source.** `ctgan` and `rdt` are BUSL-1.1 (non-production use).
-- **No automated test suite, no CI, no PR template.** Validation is by the validators and calibration scripts, not `pytest`.
-- **This is a course project** (Big Data Analysis) on a 14-week plan started 2026-09-17, so scope and deadlines may still shift.
+- **No neural generator works at this sample size.** All three families exist and are tuned, but on 94 training rows CTGAN learns no dependence between columns, and TVAE and the diffusion model reproduce their training rows. The classical baseline is the only arm that is both faithful and non-copying. Results 2–4 validate the evaluation code, and Results 5–7 are real synthetic data.
+- **The modeling frame is wider than the data.** 110 modeled columns against 94 training rows (d > n) means any flexible generator can memorize the training set.
+- **Orchestration is partly manual.** Docker images, Kubernetes Jobs for generation and evaluation, shared storage and the dashboard exist and run on Minikube, but each Job is launched by hand, Kubernetes preprocessing isn't wired, and the Jobs don't yet run the configs the tuning sweep selected (P-020).
+- **The demo dataset is small and skewed.** 100 patients produces a train/holdout split where at least one ethnicity category is entirely absent from `train` — this affects attribute-inference validity and will likely affect Track 1's generator training too.
+- **6 lab-value cells are null** across 3 lab columns (Calcium, Magnesium, Phosphate); the utility pipeline median-imputes them, but that choice hasn't been validated against alternatives.
+- **No automated test suite.** Validation so far is manual script runs plus printed sanity checks (e.g. the memorizing-vs-noisy membership-inference comparison), not `pytest` coverage.
+- **No CI/CD.** Nothing runs automatically on push.
+- **This is a course project** (Big Data Analysis) on a 14-week plan started 2026-09-17 — scope and deadlines may still shift.
 
 ---
 
@@ -199,6 +209,7 @@ All five arms are on the frontier (bootstrap frequency 0.81 to 0.97, no pairwise
 │   ├── codec.py                      #   real CSV <-> the 110-column modeling frame all generators share
 │   ├── copula.py                     #   Gaussian copula baseline + independent-marginals floor
 │   ├── ctgan_tvae.py                 #   CTGAN and TVAE on the shared modeling frame
+│   ├── diffusion.py                  #   TabDDPM-style tabular diffusion model
 │   ├── diagnostics.py                #   in-train memorization check (patient folds, DCR)
 │   ├── sweep.py                      #   hyperparameter sweep over folds and seeds, in parallel
 │   ├── validate.py                   #   Stage 2 output-contract checker
@@ -230,7 +241,7 @@ All five arms are on the frontier (bootstrap frequency 0.81 to 0.97, no pairwise
 └── .gitignore                        # excludes raw MIMIC-III source tables, venvs, generated data and results
 ```
 
-Run every Python script from the repo root, as `python -m evaluation.<module>` or `python -m generators.<module>`.
+`docker/` holds one image per stage, `k8s/` the Jobs, shared-storage claim, dashboard deployment and service, and `contracts/` the cross-stage schemas. Stage orchestration is still manual, one Job at a time. Run every evaluation script from the repo root as `python -m evaluation.<module>`.
 
 ---
 
@@ -246,7 +257,9 @@ pip install -r requirements.txt
 python validate_dataset.py                                             # Track 3: dataset checks
 python -m generators.generate --generator gaussian_copula --seed 42    # Track 1: fit, sample, validate, write
 python -m generators.validate output/synthetic/gaussian_copula_seed42.csv
-python -m evaluation.eval_runner --generator gaussian_copula --seed 42 # Track 2: writes results/gaussian_copula_seed42.json
+
+pip install -r dashboard/requirements.txt
+streamlit run dashboard/app.py   # then upload a synthetic CSV, and the real one to score against it
 ```
 
 ---
@@ -305,19 +318,19 @@ No cloud resources are in use. The pipeline is designed to run on a local Kubern
 
 | Phase (Weeks) | Track 1 — Generative Modeling | Track 2 — Evaluation | Track 3 — Data Engineering | Track 4 — Systems & Delivery |
 |---|---|---|---|---|
-| Phase 1 (1–2) | ✅ Generator contract, shared codec, validator, statistical baseline, literature review, diffusion design | ✅ Protocol, utility task, literature survey | ✅ Cleaned dataset, schema, feature dictionary, patient-level split | ✅ Base image, K8s namespace and smoke-test Job, draft contracts (no PR template) |
-| Phase 2 (3–7) | ✅ CTGAN and TVAE on the interface, in-train selection with memorization check, 165-fit sweep · diffusion not built | ✅ Fidelity, utility and privacy code, runner and contract JSON | ✅ Manifest, validation checks, preprocessing image and Job | ✅ Images and Jobs for the statistical and CTGAN generators, dashboard scaffold · no evaluation Job |
-| Phase 3 (8–11) | Not started: diffusion training and final tuning | ✅ Five arms × 20 seeds, calibrated attacks with a positive control, validated Pareto frontier · rerun needed for diffusion and retuned configs | Not started: evaluation-dataset versioning, end-to-end data-flow validation | Branch opened, no commits yet: pipeline wiring, results dashboard, end-to-end test |
+| Phase 1 (1–2) | ✅ Generator contract, shared codec, validator, statistical baseline | ✅ Protocol defined, task selected | ✅ Cleaned dataset, schema, `.gitignore` |  ✅ Set up the local Docker and Minikube/Kubernetes environment, Created and tested the base Docker image, Established integration contracts, including shared schemas and file paths, Coordinated generator input/output requirements with other tracks.|
+| Phase 2 (3–7) | ✅ CTGAN/TVAE, in-train model selection (DCR), initial sweep, contract reconciled with Track 4 · diffusion in progress | ✅ Fidelity/utility/privacy code (self-tested on stand-in data) | — | ✅ Statistical & CTGAN containerization, Kubernetes Jobs, Streamlit dashboard scaffold, local and Minikube testing. |
+| Phase 3 (8–11) | ✅ Diffusion generator built; all four arms tuned (390 fits); final-comparison configs chosen | In progress: full evaluation of Track 1's arms | ✅ Manifest dtype fix (P-019) | ✅ Docker images, generation + evaluation Jobs, shared persistent storage, dashboard with Pareto analysis; validated on Minikube with Gaussian copula and CTGAN at seed 42. Jobs are launched individually; Kubernetes preprocessing and automated stage orchestration are still open |
 | Phase 4 (12–14) | Not started | Not started | Not started | Not started |
 
 ---
 
 ## Authors
 
-- **Angshuman** — Track 1, Generative Modeling Core (statistical baseline, CTGAN/TVAE, model selection; diffusion model outstanding; cross-track architecture decisions)
-- **Rayyan** (GitHub: Rayyan-mohammed) — Track 2, Privacy & Utility Evaluation (fidelity, utility and privacy-attack modules, evaluation runner, attack calibration, Pareto frontier, literature survey)
-- **Anoushka** (GitHub: AnoushkaSarkar) — Track 3, Data Engineering (MIMIC-III preprocessing, schema, manifest, dataset validation, preprocessing Job)
-- **Anshuman CE** — Track 4, Systems Integration & Delivery (Docker images, Kubernetes Jobs, contracts, dashboard scaffold; pipeline orchestration outstanding)
+- **Angshuman** — Track 1, Generative Modeling Core (statistical baseline, CTGAN/TVAE, diffusion model; cross-track architecture decisions)
+- **Rayyan** (GitHub: Rayyan-mohammed) — Track 2, Privacy & Utility Evaluation (fidelity, utility, and privacy-attack modules; evaluation protocol)
+- **Anoushka** (GitHub: AnoushkaSarkar) — Track 3, Data Engineering (MIMIC-III preprocessing, schema, feature dictionary)
+- **Anshuman CE** — Track 4, Systems Integration & Delivery (containerization, Kubernetes orchestration, dashboard, final delivery)
 
 ---
 
@@ -330,11 +343,9 @@ No cloud resources are in use. The pipeline is designed to run on a local Kubern
 - [`docs/data_pipeline_result.md`](docs/data_pipeline_result.md), [`docs/dataset_validation_result.md`](docs/dataset_validation_result.md) — cleaned-dataset evidence, and validator fault-injection results
 - [`docs/D1_kubernetes_env_setup.md`](docs/D1_kubernetes_env_setup.md), [`docs/D2_system_integration.md`](docs/D2_system_integration.md) — Track 4 component docs (Phases 1 and 2), with static checks
 - [`docs/A1_generative_modeling.md`](docs/A1_generative_modeling.md) — Track 1: generator contract, modeling frame, ICD-9 encoding, diffusion design, literature review
-- [`docs/A2_generator_training.md`](docs/A2_generator_training.md) — Track 1 Phase 2: CTGAN/TVAE, in-train model selection, diffusion build brief
-- [`docs/baseline_generator_result.md`](docs/baseline_generator_result.md) and [`docs/sweep_result.md`](docs/sweep_result.md) — first synthetic data, and the 165-fit sweep
-- [`eval_protocol.md`](eval_protocol.md) — Track 2 metric formulas, thresholds, arms and positive control
-- [`docs/B1_evaluation_pipeline.md`](docs/B1_evaluation_pipeline.md), [`docs/B2_eval_runner.md`](docs/B2_eval_runner.md), [`docs/B3_full_evaluation.md`](docs/B3_full_evaluation.md) — Track 2 component docs, Phases 1 to 3
-- [`docs/full_evaluation_result.md`](docs/full_evaluation_result.md), [`docs/positive_control_result.md`](docs/positive_control_result.md), [`docs/full_pareto_result.md`](docs/full_pareto_result.md) — Track 2 Phase 3 results
-- [`docs/membership_inference_survey.md`](docs/membership_inference_survey.md) — literature survey, 18 checked sources
-- [`contracts/README.md`](contracts/README.md) — contracts between stages, with the path decision
+- [`docs/baseline_generator_result.md`](docs/baseline_generator_result.md) — first synthetic data: contract self-tests, fidelity, 20-seed utility, metric caveats
+- [`docs/A2_generator_training.md`](docs/A2_generator_training.md) — Track 1 Phase 2: CTGAN/TVAE, in-train model selection, contract reconciliation, diffusion build brief
+- [`docs/sweep_result.md`](docs/sweep_result.md) — initial sweep: memorization vs fidelity for every generator config
+- [`docs/A3_diffusion_and_tuning.md`](docs/A3_diffusion_and_tuning.md) — Track 1 Phase 3: the diffusion generator, final tuning, cross-track fixes and findings
+- [`docs/phase3_tuning_result.md`](docs/phase3_tuning_result.md) — 390 fits: tuning every arm, and why no neural config works at n = 94
 - [`LICENSE`](LICENSE) / [`DATA_LICENSE.md`](DATA_LICENSE.md) — MIT for code, ODbL 1.0 for MIMIC-III-derived data

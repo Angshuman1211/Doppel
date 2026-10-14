@@ -1,6 +1,6 @@
 {
   "dataset_id": "mimic_demo_clean",
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "data_path": "output/mimic_demo_clean.csv",
   "format": "csv",
   "columns": [
@@ -61,7 +61,7 @@
     },
     {
       "name": "icd9_primary",
-      "dtype": "integer",
+      "dtype": "string",
       "nullable": false
     },
     {

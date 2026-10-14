@@ -28,12 +28,50 @@ from .generate import GENERATORS, synthesize
 
 SWEEP_DIR = Path("output/sweeps")
 
+# Phase 3 tuning grid. The Phase 2 sweep (ADR-024) left three questions: can the copula do better below
+# shrinkage 0.25, are the neural defaults simply too big for 75 rows, and can the diffusion arm beat the
+# copula without copying. Small networks and short training are the levers for the last two.
 GRID = {
     "independent_marginals": [{}],
-    "gaussian_copula": [{}] + [{"shrinkage": s} for s in (0.25, 0.5, 0.9)],
-    "ctgan": [{"epochs": e} for e in (300, 1000, 3000)],
-    "tvae": [{"epochs": e} for e in (300, 1000, 3000)],
+    "gaussian_copula": [{}] + [{"shrinkage": s} for s in (0.10, 0.15, 0.25)],
+    "ctgan": [
+        {"epochs": 300},
+        {"epochs": 300, "embedding_dim": 32, "generator_dim": [64, 64], "discriminator_dim": [64, 64]},
+        {"epochs": 1000, "embedding_dim": 32, "generator_dim": [64, 64], "discriminator_dim": [64, 64]},
+    ],
+    "tvae": [
+        {"epochs": 50},
+        {"epochs": 100},
+        {"epochs": 300, "l2scale": 1e-3},
+        {"epochs": 300, "compress_dims": [64, 64], "decompress_dims": [64, 64]},
+    ],
+    "tabular_diffusion": [
+        {"steps": 300},
+        {"steps": 1000},
+        {"steps": 3000},
+        {"steps": 1000, "hidden": 64},
+        {"steps": 3000, "hidden": 64},
+        {"steps": 3000, "dropout": 0.3},
+    ],
 }
+
+# The Phase 3 grid left the diffusion arm with nothing between "memorizes" (3000 steps, near-copy 0.80)
+# and "underfits" (dropout 0.3, JSD 0.42). This probes that gap: milder regularization, middling training
+# length, and weight decay as an alternative to dropout.
+GRID_DIFFUSION_REFINE = {
+    "tabular_diffusion": [
+        {"steps": 1500},
+        {"steps": 1000, "dropout": 0.1},
+        {"steps": 1000, "dropout": 0.2},
+        {"steps": 3000, "dropout": 0.1},
+        {"steps": 3000, "dropout": 0.2},
+        {"steps": 3000, "hidden": 128},
+        {"steps": 3000, "hidden": 128, "dropout": 0.2},
+        {"steps": 3000, "weight_decay": 0.01},
+    ],
+}
+
+GRIDS = {"phase3": GRID, "diffusion_refine": GRID_DIFFUSION_REFINE}
 
 
 def _quiet():
@@ -60,8 +98,15 @@ def _run_task(generator: str, params: dict, seed: int, fold: int, k: int, min_co
 
 
 def _cost(task: tuple) -> float:
+    """Rough seconds per fit, from measured rates, so the longest tasks start first."""
     generator, params = task[0], task[1]
-    return params.get("epochs", 0) * (3 if generator == "ctgan" else 1)
+    if generator == "ctgan":
+        return params.get("epochs", 300) * 0.09
+    if generator == "tvae":
+        return params.get("epochs", 300) * 0.026
+    if generator == "tabular_diffusion":
+        return params.get("steps", 3000) * 0.013 + 6
+    return 0.5
 
 
 def aggregate(results: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -84,20 +129,23 @@ def aggregate(results: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--only", nargs="+", choices=sorted(GRID), default=sorted(GRID))
+    parser.add_argument("--grid", choices=sorted(GRIDS), default="phase3")
+    parser.add_argument("--only", nargs="+", default=None, help="generators to run (default: all in the grid)")
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--min-count", type=int, default=5)
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
     args = parser.parse_args(argv)
-    assert set(GRID) <= set(GENERATORS)
+    grid = GRIDS[args.grid]
+    only = args.only or sorted(grid)
+    assert set(only) <= set(grid) <= set(GENERATORS), f"unknown generator in {only}"
 
     # Workers are spawned fresh, so this reaches numpy's BLAS before it loads.
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         os.environ[var] = "1"
 
     tasks = [(g, p, s, f, args.folds, args.min_count)
-             for g in args.only for p in GRID[g] for s in args.seeds for f in range(args.folds)]
+             for g in only for p in grid[g] for s in args.seeds for f in range(args.folds)]
     tasks.sort(key=_cost, reverse=True)  # longest first, for load balance
     print(f"{len(tasks)} tasks on {args.workers} workers", flush=True)
 

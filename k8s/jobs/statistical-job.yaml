@@ -1,14 +1,22 @@
+
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: doppel-statistical
   namespace: doppel
+  labels:
+    project: doppel
+    component: generation
+    generator: gaussian-copula
+    track: track4
 spec:
   backoffLimit: 1
   template:
     metadata:
       labels:
         app: doppel-statistical
+        project: doppel
+        component: generation
     spec:
       restartPolicy: Never
       containers:
@@ -23,3 +31,11 @@ spec:
             - gaussian_copula
             - --seed
             - "42"
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/output
+              subPath: output
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: doppel-shared-pvc

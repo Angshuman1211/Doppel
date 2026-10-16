@@ -223,6 +223,7 @@ The third family now exists, and 390 fits across two grids tuned every arm. Best
 ├── docker/                           # Track 4: base, preprocessing, statistical, ctgan images and a smoke test
 ├── k8s/                              # Track 4: namespace and Jobs (preprocessing, statistical, ctgan, smoke test)
 ├── dashboard/                        # Track 4: Streamlit scaffold listing generated datasets and manifests
+├── web/                              # Track 2: React results dashboard (Vite), reads web/public/data/dashboard.json
 ├── docs/                             # component docs (A1, A2, B1-B3, C1, C2, D1, D2), result docs, survey, problems_and_decisions.md
 ├── output/
 │   ├── mimic_demo_clean.csv          # cleaned dataset (129 admissions x 56 cols)
@@ -304,6 +305,9 @@ kubectl apply -f k8s/jobs/statistical-job.yaml
 # Dashboard scaffold (also not run here)
 pip install -r dashboard/requirements.txt
 streamlit run dashboard/app.py
+
+# Results dashboard in React (needs Node 20+; see web/README.md)
+cd web && npm install && npm run dev
 ```
 
 ---

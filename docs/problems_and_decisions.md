@@ -255,6 +255,22 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 
 ---
 
+### ADR-031 — The final comparison is nine arms over 20 seeds, run in one environment
+**Decision:** The report's Results section uses a single benchmark of nine arms over seeds 42 to 61, 180 runs: the floor, three copula settings, two CTGAN settings, TVAE, and two diffusion settings. Track 1 ran it, because the Phase 3 evaluation predates the diffusion family and the tuned configurations, so the headline three-family comparison was missing a family. `evaluation/arms.py` gained the four new entries; the harness, protocol and thresholds are unchanged. The numbers live in [`final_comparison_result.md`](final_comparison_result.md) and supersede the five-arm table in [`full_evaluation_result.md`](full_evaluation_result.md).
+**Why:** A comparability study whose final table omits one of the three families it set out to compare has not answered its own question. Rerunning the five original arms locally as well, rather than reusing published numbers from another machine, keeps every row of the table from one environment, so a difference between rows is the generator and not the host.
+**Impact:** Both diffusion settings and both tuned settings now appear everywhere the comparison does, including the web dashboard. Three findings came out of it that shape how the Results section must be written: utility alone would crown a generator that produces 81% in-hospital deaths against 36% real, the Pareto frontier collapses for both diffusion arms once the utility axis is removed, and the membership-attack floor on this dataset is about 0.64 rather than 0.50. Shadow fits are cached under `output/synthetic/shadow_cache`, so the calibration run reused them instead of refitting.
+**Branch:** `main`
+
+---
+
+### ADR-032 — Utility stays on the full holdout, attribute inference moves to the clean one
+**Decision:** The report uses the 35-row holdout for utility, with the clean-holdout rerun quoted as a robustness check, and the 20-row clean holdout (Track 3's `clean_holdout()`, subject 41976 removed) for attribute inference. Fidelity and membership inference are computed against train and are unaffected. `evaluation/eval_runner.py` gained a `--clean-holdout` flag that writes to `results/clean_holdout/`, so both variants exist side by side rather than one overwriting the other.
+**Why:** All nine arms were rerun both ways ([`final_comparison_result.md`](final_comparison_result.md)). For utility, every arm shifts up by about 0.08 to 0.10 and the spread narrows, the top two arms are unchanged, and the only reordering is a swap between TVAE and the tuned copula that their standard deviations already cover, so nothing is gained by invalidating every published number and both dashboards. For attribute inference the full holdout is measuring the artifact itself: the attacker scores below chance on non-members (−0.063 to −0.073 on gender for several arms), which is the 12 F / 23 M imbalance one patient creates, and since the member gap subtracts the non-member score, that negative baseline inflates leakage by roughly 0.05 to 0.08.
+**Impact:** No existing number is retracted. Like every other result set, `results/clean_holdout/` is gitignored and regenerated rather than committed (ADR-008): rerun with `--clean-holdout` over the nine arms and seeds 42 to 61. The exclusion now has one shared definition instead of each track filtering by hand (Track 3's PR #18, requested in the Phase 3 review). Anyone quoting an attribute-inference figure should take it from that run.
+**Branch:** `main`
+
+---
+
 ## Problems Encountered
 
 ### P-001 — `SimpleImputer` not fitted during utility-pipeline cross-validation
@@ -433,3 +449,19 @@ sklearn.exceptions.NotFittedError: This SimpleImputer instance is not fitted yet
 **Problem:** Found while porting the Stage 2 contract check to the browser for the web dashboard's Upload section, by running both versions on 27 deliberately broken files. When a continuous column such as `los_icu_days` holds a text value, `generators.validate.check_contract` records the dtype mismatch and then calls `np.isinf` on the object column, which raises `TypeError: ufunc 'isinf' not supported for the input types`. The function never returns its list of problems. The Streamlit app calls it without a `try`, so uploading such a file to its Compare tab would show a traceback instead of the contract result. Every other broken file, 26 of 27, gave the expected messages.
 **Fix:** None applied; the file is Track 1's. Proposed: skip the numeric checks for any column whose dtype kind already failed, or convert with `pd.to_numeric(..., errors="coerce")` before `np.isinf`. The browser port does the first and reports only the wrong type. The parity test that found it is described in [`B3b_web_dashboard.md`](B3b_web_dashboard.md).
 **Lesson:** A validator is most likely to meet the input it was never tried on, so its own failure modes need the same fault injection as the data it checks.
+
+---
+
+### P-022 — Fix for P-021: the contract checker crashed instead of reporting a wrong dtype
+**Week/Date:** 2026-10-21
+**Problem:** Track 2's port of the contract check to the browser found it, by running both versions over 27 deliberately broken files. With text in a continuous column, `check_contract` recorded the dtype mismatch and then called `np.isinf` on an object column, which raises `TypeError: ufunc 'isinf' not supported for the input types`, so the function never returned its list of problems. The Streamlit Compare tab calls it without a `try`, so such a file showed a traceback instead of a result.
+**Fix:** `generators/validate.py` now collects the columns that failed the dtype check and skips the value comparisons for them, which is what Track 2's browser port already does, so the two agree. The same guard covers the `age` range checks, which would have raised in the same way. Verified: text in `los_icu_days`, in `age` and in a lab column each return one clean dtype error instead of raising, and negative values, fractions above 1, infinities and out-of-range ages are all still caught.
+**Lesson:** When one check fails, the checks that depend on it should be skipped rather than run anyway. A validator that raises tells the caller less than one that returns a list with the real problem in it, and the crash only surfaced because a second implementation was tested against the first.
+
+---
+
+### P-023 — Two tracks rebuilt the same dashboard update in parallel
+**Week/Date:** 2026-10-21
+**Problem:** With the nine-arm benchmark finished, Track 1 updated the web dashboard to show it: four arm entries in the export script, a fifth family colour, two marker shapes, and six places in the copy that still said "five generators" or "the diffusion model does not exist yet". Track 2 did the same work at the same time on their own branch, and also ported the contract and fidelity checks into a browser workbench. Both versions were correct and neither knew about the other until the merge, so about 3,500 lines of Track 1's edits were discarded in favour of Track 2's, which went further.
+**Fix:** Track 1's edits were dropped and Track 2's kept, since theirs covered everything and added the workbench. The duplicate work was in another track's files, which is exactly where a check before starting is cheapest: a fetch and a look at open branches would have shown `track2-phase4-evaluation-report` in progress.
+**Lesson:** Before editing another track's files, check their branches, not just `main`. The cost here was an hour of duplicated effort rather than a wrong result, but the same pattern in a shared file would have produced a conflict instead.

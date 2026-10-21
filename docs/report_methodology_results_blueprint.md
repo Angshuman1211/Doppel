@@ -113,6 +113,12 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 - The copula is the exception, and the reason is that it never had the capacity to memorize in the first place.
 - This is the paper-shaped finding: at this sample size, flexible generators buy fidelity with memorization.
 
+**B5a. The holdout's single-patient skew, and what was done about it.**
+- One patient holds **15 of the 35** holdout rows, all male, all Puerto Rican, and none of the 6 deaths (Track 3's finding).
+- Every arm was rerun against the 20-row holdout without them. Utility shifts up **+0.08 to +0.10 for every arm**, the top two are unchanged, and the spread narrows, so no conclusion depends on the choice.
+- Attribute inference is the one metric that was genuinely corrupted: on the full holdout the attacker scores **below chance on non-members** (−0.063 to −0.073 on gender), which inflates the member gap by roughly 0.05 to 0.08. Those figures come from the clean holdout instead (ADR-032).
+- Worth one line on why this is reported rather than quietly fixed: the artifact was found, measured both ways, and the choice stated.
+
 **B6. Threats to validity, stated by us rather than by the examiner.**
 - 94 rows, 110 modeled columns, 35 holdout rows of which 15 are one patient, 6 positives for the utility task.
 - Selection numbers are in-sample by construction; the holdout numbers are the benchmark.

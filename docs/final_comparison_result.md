@@ -92,6 +92,36 @@ Track 1 picked configurations with a memorization check that never touches the h
 
 The ordering matches on four of five arms, so a cheap in-train diagnostic anticipated the expensive holdout-side attack. The exception matters: `tabular_diffusion_reg` passes the in-train guard (0.084, under the 0.10 threshold) and still carries the second-highest membership risk. **The guard is necessary but not sufficient**, and the report should say so rather than presenting the in-train check as a privacy guarantee.
 
+## Robustness: the holdout without subject 41976
+
+Subject 41976 holds 15 of the 35 holdout rows, all male, all Puerto Rican, and contributes none of the 6 deaths (Track 3's finding, P-003 and P-011). `generators.schema.clean_holdout()` drops them, leaving 20 rows. Every arm was rerun against it with `--clean-holdout`, into `results/clean_holdout/`, so both variants exist side by side. Fidelity and membership inference are computed against train and are bit-identical between the two; only utility and attribute inference move.
+
+**Utility: conclusions hold.** Every arm shifts up by about the same amount and the spread narrows, because the 15 excluded rows were uniformly hard to rank.
+
+| Arm | TSTR, 35 rows | TSTR, 20 clean rows | Shift |
+|---|---|---|---|
+| `independent_marginals` | 0.486 ± 0.164 | 0.567 ± 0.141 | +0.080 |
+| `gaussian_copula_shrink010` | 0.678 ± 0.164 | 0.758 ± 0.116 | +0.081 |
+| `ctgan_small` | 0.555 ± 0.137 | 0.549 ± 0.139 | −0.007 |
+| `tvae` | 0.677 ± 0.086 | 0.780 ± 0.077 | +0.102 |
+| `tabular_diffusion` | 0.754 ± 0.083 | 0.844 ± 0.056 | +0.090 |
+| `tabular_diffusion_reg` | 0.775 ± 0.081 | 0.863 ± 0.047 | +0.088 |
+
+The top two arms are unchanged, and the only reordering is TVAE and the tuned copula swapping third and fourth, which their standard deviations already cover. No finding in this document depends on which variant is used.
+
+**Attribute inference: the 35-row holdout is measuring the skew.** On the full holdout the attacker scores *below* chance on non-members, which is not a privacy property but the 12 F / 23 M imbalance that one patient creates:
+
+| Arm | Gender uplift on non-members, 35 rows | 20 clean rows |
+|---|---|---|
+| `independent_marginals` | −0.015 | −0.006 |
+| `gaussian_copula_shrink010` | −0.063 | +0.004 |
+| `tvae` | −0.073 | +0.004 |
+| `tabular_diffusion` | −0.067 | −0.019 |
+
+Because the member gap is members minus non-members, that negative baseline inflates it. On the clean holdout the gaps fall accordingly: the tuned copula from 0.161 to 0.094, TVAE from 0.223 to 0.145, the diffusion model from 0.284 to 0.236. The ordering is unchanged, so the diffusion model still leaks most, but the full-holdout numbers overstate attribute leakage by roughly 0.05 to 0.08.
+
+**What to report.** Utility against the 35-row holdout, with this table as the robustness check, since that is what every published number and both dashboards use and nothing changes. Attribute inference against the clean holdout, because the full one measures a known artifact. Fidelity and membership inference are unaffected either way (ADR-032).
+
 ## Reading guide for the report
 
 1. **Fidelity**: the copula arms are an order of magnitude ahead of every neural arm.

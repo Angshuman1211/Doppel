@@ -31,6 +31,16 @@ spec:
             - gaussian_copula
             - --seed
             - "42"
+            # Shrinkage 0.10 is the configuration Track 1's tuning selected (ADR-029).
+            - --param
+            - shrinkage=0.10
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
           volumeMounts:
             - name: shared-storage
               mountPath: /app/output

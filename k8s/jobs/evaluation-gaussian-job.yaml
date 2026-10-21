@@ -29,6 +29,13 @@ spec:
             - gaussian_copula
             - --seed
             - "42"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
           volumeMounts:
             - name: shared-storage
               mountPath: /app/output

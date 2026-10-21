@@ -98,10 +98,14 @@ def cached(generator_fn):
     return generate
 
 
-def evaluate(arm, seed):
+def evaluate(arm, seed, clean_holdout=False):
+    """`clean_holdout` drops subject 41976, whose 15 admissions are 15 of the 35 holdout rows and cause the
+    ethnicity and gender skew (P-003, P-011). It changes every holdout-side metric, so it is off by default
+    and the two variants are kept in separate result directories."""
     real = S.load_real()
     train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT].reset_index(drop=True)
-    holdout = real[real[S.SPLIT_COL] != S.TRAIN_SPLIT].reset_index(drop=True)
+    holdout = (S.clean_holdout(real) if clean_holdout
+               else real[real[S.SPLIT_COL] != S.TRAIN_SPLIT].reset_index(drop=True))
     synth = load_synthetic(arm, seed)
 
     with warnings.catch_warnings():
@@ -153,13 +157,17 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     parser.add_argument("--generator", required=True)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--clean-holdout", action="store_true",
+                        help="score against the holdout without subject 41976 (20 rows), into results/clean_holdout/")
+    parser.add_argument("--results-dir", type=Path, default=None)
     args = parser.parse_args(argv)
 
-    result = evaluate(args.generator, args.seed)
+    result = evaluate(args.generator, args.seed, clean_holdout=args.clean_holdout)
     validate_result(result)
 
-    RESULTS_DIR.mkdir(exist_ok=True)
-    path = RESULTS_DIR / f"{result['run_id']}.json"
+    results_dir = args.results_dir or (RESULTS_DIR / "clean_holdout" if args.clean_holdout else RESULTS_DIR)
+    results_dir.mkdir(parents=True, exist_ok=True)
+    path = results_dir / f"{result['run_id']}.json"
     path.write_text(json.dumps(result, indent=2) + "\n")
     print(f"wrote {path}")
 

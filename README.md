@@ -356,7 +356,8 @@ No cloud resources are in use. The pipeline is designed to run on a local Kubern
 - [`docs/final_comparison_result.md`](docs/final_comparison_result.md) — Track 1's run of all nine arms through Track 2's harness (not yet reproduced by Track 2)
 - [`docs/A4_generator_architecture.md`](docs/A4_generator_architecture.md), [`docs/report_methodology_results_blueprint.md`](docs/report_methodology_results_blueprint.md) — Track 1 Phase 4: generator architecture, and the Methodology and Results sections of the report
 - [`eval_protocol.md`](docs/eval_protocol.md) — Track 2 metric formulas, thresholds, arms and positive control
-- [`docs/B1_evaluation_pipeline.md`](docs/B1_evaluation_pipeline.md), [`docs/B2_eval_runner.md`](docs/B2_eval_runner.md), [`docs/B3_full_evaluation.md`](docs/B3_full_evaluation.md), [`docs/B3b_web_dashboard.md`](docs/B3b_web_dashboard.md) — Track 2 component docs, Phases 1 to 3
+- [`docs/B1_evaluation_pipeline.md`](docs/B1_evaluation_pipeline.md), [`docs/B2_eval_runner.md`](docs/B2_eval_runner.md), [`docs/B3_full_evaluation.md`](docs/B3_full_evaluation.md), [`docs/B3b_web_dashboard.md`](docs/B3b_web_dashboard.md), [`docs/B4_evaluation_report.md`](docs/B4_evaluation_report.md) — Track 2 component docs, Phases 1 to 4
+- [`docs/final_evaluation_result.md`](docs/final_evaluation_result.md) — Track 2's nine-arm evaluation, the final comparison
 - [`docs/full_evaluation_result.md`](docs/full_evaluation_result.md), [`docs/positive_control_result.md`](docs/positive_control_result.md), [`docs/full_pareto_result.md`](docs/full_pareto_result.md) — Track 2 Phase 3 results
 - [`docs/membership_inference_survey.md`](docs/membership_inference_survey.md) — literature survey, 18 checked sources
 - [`docs/report_evaluation_section.md`](docs/report_evaluation_section.md) and its [blueprint](docs/report_evaluation_section_blueprint.md) — Track 2 Phase 4: the Evaluation section of the report

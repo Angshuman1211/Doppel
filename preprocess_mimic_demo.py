@@ -7,6 +7,9 @@ Stage 3 (evaluation), per schema_and_feature_dictionary.md.
 
 RAW_DIR and OUT_DIR can be overridden via environment variables so this
 script runs identically locally and inside a Kubernetes Job.
+
+All CSVs are written with LF line endings on every OS, so the output is
+byte-identical on Windows and Linux (the dataset hash depends on this).
 """
 
 import json
@@ -176,15 +179,17 @@ def main():
     df = df.drop(columns=["admittime"], errors="ignore")
 
     out_path = OUT_DIR / "mimic_demo_clean.csv"
-    df.to_csv(out_path, index=False)
+    df.to_csv(out_path, index=False, lineterminator="\n")
 
     lookup_path = OUT_DIR / "lab_item_lookup.csv"
     pd.Series(lab_lookup, name="label").rename_axis("itemid").reset_index().to_csv(
-        lookup_path, index=False
+        lookup_path, index=False, lineterminator="\n"
     )
 
     icd9_lookup_path = OUT_DIR / "icd9_lookup.csv"
-    d_icd_diagnoses[["icd9_code", "short_title"]].to_csv(icd9_lookup_path, index=False)
+    d_icd_diagnoses[["icd9_code", "short_title"]].to_csv(
+        icd9_lookup_path, index=False, lineterminator="\n"
+    )
 
     print(f"Wrote {len(df)} admission rows, {df.shape[1]} columns -> {out_path}")
     print(f"Train/holdout split: {df['split'].value_counts().to_dict()}")

@@ -1,5 +1,7 @@
 # Full Evaluation Result — TVAE reaches the real-data utility ceiling by copying, CTGAN learns nothing, and no arm dominates (2026-09-24)
 
+> **Superseded as the headline (2026-10-21)** by the nine-arm evaluation in [`final_evaluation_result.md`](final_evaluation_result.md), which adds Track 1's four Phase 3 arms, including diffusion. The five-arm numbers below are unchanged and still stand: seed 42 of three of these arms was rerun on 2026-10-21 and reproduced exactly.
+
 Raw evidence for the first evaluation of all of Track 1's generator families (statistical, GAN-family, VAE) through the full Track 2 harness. Reproduce with `pip install -r generators/requirements-neural.txt`, then `python -m evaluation.eval_runner --generator <arm> --seed <n>` for seeds 42 to 61 and every arm in [`evaluation/arms.py`](../evaluation/arms.py), then `python -m evaluation.summarize_results`. This supersedes the two-arm numbers in [`baseline_evaluation_result.md`](baseline_evaluation_result.md).
 
 ---

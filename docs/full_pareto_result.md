@@ -1,5 +1,7 @@
 # Full Pareto Result — five arms are all non-dominated, and the frontier says more about the axes than about the generators (2026-09-24)
 
+> **Superseded as the headline (2026-10-21)** by the nine-arm frontier in [`final_evaluation_result.md`](final_evaluation_result.md), which adds Track 1's four Phase 3 arms, including diffusion. The five-arm numbers below are unchanged and still stand: seed 42 of three of these arms was rerun on 2026-10-21 and reproduced exactly.
+
 Raw evidence for the fidelity, utility and privacy frontier over Track 1's generator families, with the frontier re-derived under eight axis choices to test how much it depends on my choices. Reproduce with the runs in [`full_evaluation_result.md`](full_evaluation_result.md), then `python -m evaluation.pareto`. This supersedes [`pareto_result.md`](pareto_result.md), which covered two baselines.
 
 ---

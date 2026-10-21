@@ -1,7 +1,7 @@
 """
 Doppel - export the evaluation results as one JSON file for the web dashboard.
 
-Reads results/<arm>_seed<n>.json and results/calibration/mia_calibration.json (written by
+Reads results/<arm>_seed<n>.json and results/calibration/mia_calibration*.json (written by
 evaluation.eval_runner and evaluation.mia_calibration), reuses evaluation.pareto for the frontier, and
 writes web/public/data/dashboard.json. Aggregates only: no patient rows.
 
@@ -41,12 +41,24 @@ ARMS = [
     {"id": "gaussian_copula_shrink025", "label": "Gaussian copula, shrink 0.25", "short": "Copula 0.25", "family": "copula",
      "family_label": "Statistical", "marker": "diamond",
      "about": "The same copula with less shrinkage, so it keeps more of the real correlations. This is the config Track 1 carried into Phase 3."},
+    {"id": "gaussian_copula_shrink010", "label": "Gaussian copula, shrink 0.10", "short": "Copula 0.10", "family": "copula",
+     "family_label": "Statistical", "marker": "hexagon",
+     "about": "The copula Track 1 picked after tuning: the least shrinkage tested, and the best correlation of any generator."},
     {"id": "ctgan", "label": "CTGAN", "short": "CTGAN", "family": "ctgan",
      "family_label": "GAN", "marker": "triangle",
      "about": "A GAN for tables, trained for 300 epochs. At 94 training rows it learns almost nothing beyond the floor."},
+    {"id": "ctgan_small", "label": "CTGAN, small networks", "short": "CTGAN small", "family": "ctgan",
+     "family_label": "GAN", "marker": "plus",
+     "about": "CTGAN with smaller networks, Track 1's tuned setting. Its columns look more real, and it still learns no dependence."},
     {"id": "tvae", "label": "TVAE", "short": "TVAE", "family": "tvae",
      "family_label": "VAE", "marker": "triangleDown",
-     "about": "A variational autoencoder for tables, trained for 300 epochs. It memorizes training rows, which makes it the positive control for the privacy attacks."},
+     "about": "A variational autoencoder for tables, trained for 300 epochs. It memorizes training rows, which makes it a positive control for the privacy attacks."},
+    {"id": "tabular_diffusion", "label": "Tabular diffusion", "short": "Diffusion", "family": "diffusion",
+     "family_label": "Diffusion", "marker": "circle",
+     "about": "A diffusion model for tables, trained for 3000 steps. It has the best fidelity of the neural generators and copies most of its training rows."},
+    {"id": "tabular_diffusion_reg", "label": "Tabular diffusion, regularized", "short": "Diffusion reg.", "family": "diffusion",
+     "family_label": "Diffusion", "marker": "diamond",
+     "about": "The diffusion model trained for 1000 steps with dropout, the only setting that passed Track 1's memorization check."},
 ]
 IDS = [a["id"] for a in ARMS]
 ATTACKS = ["numeric4", "gower", "icd9_codes"]
@@ -115,11 +127,13 @@ def tests(summaries, runs):
     ps = lambda arm, key: np.array(summaries[arm]["per_seed"][key])
     gaps = lambda arm, t: np.array([m["privacy"]["attribute_inference_targets"][t]["member_gap"] for m in runs[arm]])
     out = {}
-    for other in IDS:
-        if other == "tvae":
-            continue
-        out[f"tvae_vs_{other}_worst_p"] = welch(ps("tvae", "worst"), ps(other, "worst"))
+    for leaker in ("tvae", "tabular_diffusion", "tabular_diffusion_reg"):
+        for other in IDS:
+            if other != leaker:
+                out[f"{leaker}_vs_{other}_worst_p"] = welch(ps(leaker, "worst"), ps(other, "worst"))
     out["tvae_vs_shrink025_utility_p"] = welch(ps("tvae", "tstr_mean"), ps("gaussian_copula_shrink025", "tstr_mean"))
+    out["shrink010_vs_tvae_utility_p"] = welch(ps("gaussian_copula_shrink010", "tstr_mean"), ps("tvae", "tstr_mean"))
+    out["shrink010_vs_diffusion_utility_p"] = welch(ps("gaussian_copula_shrink010", "tstr_mean"), ps("tabular_diffusion", "tstr_mean"))
     for arm in IDS:
         if arm == "independent_marginals":
             continue
@@ -156,8 +170,21 @@ def pareto_block():
 
 
 def calibration_block():
-    path = ROOT / "results" / "calibration" / "mia_calibration.json"
-    d = json.load(open(path, encoding="utf-8"))
+    # The seven-arm calibration and the later run for the Phase 3 arms are separate files; the arms do not overlap.
+    d = None
+    for path in sorted((ROOT / "results" / "calibration").glob("mia_calibration*.json")):
+        part = json.load(open(path, encoding="utf-8"))
+        if d is None:
+            d = part
+            continue
+        assert part["singleton_codes_per_record"] == d["singleton_codes_per_record"], f"{path.name} used other train codes"
+        for key in ("auroc", "tpr_at_fpr_5pct", "tpr_at_fpr_1pct", "record_advantage_mean"):
+            clash = set(part[key]) & set(d[key])
+            assert not clash, f"{path.name} repeats {clash}"
+            d[key].update(part[key])
+    missing = [a for a in IDS if a not in d["auroc"]]
+    if missing:
+        raise SystemExit(f"no membership calibration for {missing}; run evaluation.mia_calibration for them")
     arms = sorted(d["auroc"])
     attacks = list(next(iter(d["auroc"].values())))
     block = {
@@ -199,6 +226,20 @@ def coverage_block():
     return out
 
 
+def mortality_block():
+    out = {}
+    for arm in IDS:
+        generator = resolve(arm)[0]
+        rates = []
+        for seed in range(42, 62):
+            path = S.SYNTH_DIR / "eval" / arm / f"{generator}_seed{seed}.csv"
+            if not path.exists():
+                return {}
+            rates.append(float(S.load_real(path)[S.BINARY[0]].mean()))
+        out[arm] = ms(rates)
+    return out
+
+
 def refs_block(summaries):
     real = S.load_real()
     train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT]
@@ -226,6 +267,7 @@ def dataset_block():
         "train": int(len(train)), "holdout": int(len(holdout)),
         "holdout_positives": int(holdout["hospital_expire_flag"].sum()),
         "mortality_rate": float(real["hospital_expire_flag"].mean()),
+        "train_mortality_rate": float(train["hospital_expire_flag"].mean()),
     }
 
 
@@ -254,6 +296,7 @@ def main():
         "pareto": pareto_block(),
         "calibration": calibration_block(),
         "coverage": coverage_block(),
+        "mortality": mortality_block(),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8")

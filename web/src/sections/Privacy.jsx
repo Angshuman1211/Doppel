@@ -2,6 +2,7 @@ import ChartCard from '../components/ChartCard'
 import DotPlot from '../charts/DotPlot'
 import { FAMILY_COLOR, Swatch } from '../lib/marks'
 import { f3, pval } from '../lib/format'
+import { LEAKY, NOT_LEAKY, argmax, pct0, range } from '../lib/groups'
 
 const ATTACK_CARDS = [
   { key: 'numeric4', title: '4 columns', sub: 'Age, stay lengths and diagnosis count only.' },
@@ -47,8 +48,17 @@ export default function Privacy({ data }) {
   }
 
   const tv = c.auroc.tvae
-  const oth = ['independent_marginals', 'gaussian_copula', 'gaussian_copula_shrink025', 'ctgan']
-  const once = oth.concat('tvae').map((a) => c.auroc[a].codes_once.mean)
+  const df = c.auroc.tabular_diffusion
+  const ids = arms.map((a) => a.id)
+  const name = (id) => arms.find((a) => a.id === id)?.label ?? id
+  const once = ids.map((a) => c.auroc[a].codes_once.mean)
+  const [gLo, gHi] = range(NOT_LEAKY, (a) => c.auroc[a].gower.mean)
+  const codesTop = argmax(ids, (a) => c.auroc[a].icd9_codes.mean)
+  const [tLo, tHi] = range(NOT_LEAKY, (a) => c.tpr1[a].gower.mean)
+  const [covLo, covHi] = range(NOT_LEAKY, (a) => coverage[a].distinct.mean)
+  const genderTop = argmax(ids.filter((a) => a !== 'independent_marginals'), (a) => r[a].attribute_gap.gender.mean)
+  const tprTop = Math.max(...ids.map((a) => c.tpr1[a].gower.mean + c.tpr1[a].gower.sd), c.tpr1.disjoint_real.gower.mean)
+  const tprAxis = tprTop > 0.2 ? { domain: [0, 0.42], ticks: [0, 0.1, 0.2, 0.3, 0.4] } : { domain: [0, 0.09], ticks: [0, 0.02, 0.04, 0.06, 0.08] }
 
   return (
     <section id="privacy" aria-labelledby="h-privacy">
@@ -73,11 +83,11 @@ export default function Privacy({ data }) {
                 table={attackTable(a.key, a.title)}
                 takeaway={
                   a.key === 'numeric4' ? (
-                    <><b>Blind to TVAE:</b> {f3(tv.numeric4.mean)}, the same as the floor.</>
+                    <><b>Nearly blind:</b> TVAE {f3(tv.numeric4.mean)}, the same as the floor; only the diffusion model stands out, at {f3(df.numeric4.mean)}.</>
                   ) : a.key === 'gower' ? (
-                    <><b>Sees TVAE:</b> {f3(tv.gower.mean)} against {f3(c.auroc.ctgan.gower.mean)} to {f3(c.auroc.gaussian_copula_shrink025.gower.mean)}.</>
+                    <><b>Sees the leaks:</b> {LEAKY.map((a) => `${name(a)} ${f3(c.auroc[a].gower.mean)}`).join(', ')}, against {f3(gLo)} to {f3(gHi)} for the rest.</>
                   ) : (
-                    <><b>Every generator leaks a little here</b>, TVAE most ({f3(tv.icd9_codes.mean)}).</>
+                    <><b>Every generator leaks a little here</b>, {name(codesTop)} most ({f3(c.auroc[codesTop].icd9_codes.mean)}).</>
                   )
                 }
               >
@@ -94,22 +104,23 @@ export default function Privacy({ data }) {
               table={tprTable('gower', 'all-columns attack')}
               takeaway={
                 <>
-                  <b>TVAE exposes {(c.tpr1.tvae.gower.mean / 0.01).toFixed(1)}× more records than guessing would</b> ({f3(c.tpr1.tvae.gower.mean)} against 0.010). An average score can hide this, so the
-                  low false-alarm rate is reported as well.
+                  <b>The diffusion model gives away {pct0(c.tpr1.tabular_diffusion.gower.mean)} of its training patients</b>, {Math.round(c.tpr1.tabular_diffusion.gower.mean / 0.01)}× what guessing finds; TVAE{' '}
+                  {(c.tpr1.tvae.gower.mean / 0.01).toFixed(1)}×, the generators that do not leak {f3(tLo)} to {f3(tHi)}. An average score can hide this, so the low false-alarm rate is reported as well.
                 </>
               }
             >
-              <DotPlot rows={tprRows('gower')} domain={[0, 0.09]} ticks={[0, 0.02, 0.04, 0.06, 0.08]} refs={[{ value: 0.01, label: 'Guessing 0.01' }]} label="Records found at 1% false alarms" />
+              <DotPlot rows={tprRows('gower')} domain={tprAxis.domain} ticks={tprAxis.ticks} refs={[{ value: 0.01, label: 'Guessing 0.01' }]} label="Records found at 1% false alarms" />
             </ChartCard>
 
             <ChartCard
-              title="Why TVAE leaks: it collapses onto a few rows"
+              title="How the leaky generators sit on the training rows"
               subtitle="How many of the 94 training rows the synthetic rows are nearest to."
               table={covTable}
               takeaway={
                 <>
-                  <b>TVAE's output sits nearest to only {coverage.tvae.distinct.mean.toFixed(0)} training rows</b> (others {Math.min(...oth.map((a) => coverage[a].distinct.mean)).toFixed(0)} to{' '}
-                  {Math.max(...oth.map((a) => coverage[a].distinct.mean)).toFixed(0)}), and up to {coverage.tvae.max_share.mean.toFixed(0)} synthetic rows crowd around a single one.
+                  <b>TVAE and the regularized diffusion model collapse onto {coverage.tvae.distinct.mean.toFixed(0)} and {coverage.tabular_diffusion_reg.distinct.mean.toFixed(0)} training rows</b>{' '}
+                  (the rest {covLo.toFixed(0)} to {covHi.toFixed(0)}). The 3000-step diffusion model does the opposite, spreading over {coverage.tabular_diffusion.distinct.mean.toFixed(0)} while
+                  reproducing them closely.
                 </>
               }
             >
@@ -122,7 +133,7 @@ export default function Privacy({ data }) {
             <p className="muted" style={{ marginTop: 6, maxWidth: 780 }}>
               A generator can only emit diagnosis codes it saw in training. A patient with a code that no one else has is therefore easy to spot: if
               the code shows up in the synthetic data, that patient was in the training set. Using only codes seen once, the attack scores{' '}
-              <b>{f3(Math.min(...once))} to {f3(Math.max(...once))} for all five generators</b>, against a floor of {f3(c.auroc.disjoint_real.codes_once.mean)}. That includes CTGAN, which learned little else,
+              <b>{f3(Math.min(...once))} to {f3(Math.max(...once))} for all {ids.length} generators</b>, against a floor of {f3(c.auroc.disjoint_real.codes_once.mean)}. That includes both CTGAN settings, which learned little else,
               so this is a property of the approach and not of one model.
             </p>
           </div>
@@ -171,7 +182,8 @@ export default function Privacy({ data }) {
               </table>
             </div>
             <p className="takeaway">
-              <b>TVAE's gender gap is {(r.tvae.attribute_gap.gender.mean / r.independent_marginals.attribute_gap.gender.mean).toFixed(1)}× the floor's</b>, so the positive control shows up here too. These are 12 uncorrected
+              <b>{name(genderTop)}&rsquo;s gender gap is {(r[genderTop].attribute_gap.gender.mean / r.independent_marginals.attribute_gap.gender.mean).toFixed(1)}× the floor&rsquo;s</b>, and TVAE&rsquo;s{' '}
+              {(r.tvae.attribute_gap.gender.mean / r.independent_marginals.attribute_gap.gender.mean).toFixed(1)}×, so the copying generators show up here too. These are {3 * (ids.length - 1)} uncorrected
               tests on a very small dataset, so treat single p-values with caution.
             </p>
           </div>

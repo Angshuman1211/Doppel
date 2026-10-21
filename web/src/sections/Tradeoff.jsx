@@ -8,9 +8,9 @@ import { FAMILY_COLOR, Swatch } from '../lib/marks'
 import { f2, f3 } from '../lib/format'
 
 const METRICS = {
-  privacy: { label: 'Privacy leakage: attack score', short: 'leakage', better: 'lower', get: (r) => r.privacy.worst, domain: [0.6, 0.72], ticks: [0.6, 0.64, 0.68, 0.72] },
+  privacy: { label: 'Privacy leakage: attack score', short: 'leakage', better: 'lower', get: (r) => r.privacy.worst, domain: [0.6, 0.82], ticks: [0.6, 0.65, 0.7, 0.75, 0.8] },
   utility: { label: 'Utility: prediction score', short: 'utility', better: 'higher', get: (r) => r.utility.tstr_mean, domain: [0.3, 0.9], ticks: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9] },
-  fidelity: { label: 'Fidelity: distance from real data', short: 'distance', better: 'lower', get: (r) => r.fidelity.jsd, domain: [0, 0.13], ticks: [0, 0.03, 0.06, 0.09, 0.12] },
+  fidelity: { label: 'Fidelity: distance from real data', short: 'distance', better: 'lower', get: (r) => r.fidelity.jsd, domain: [0, 0.42], ticks: [0, 0.1, 0.2, 0.3, 0.4] },
 }
 const OPTIONS = [
   { value: 'privacy', label: 'Privacy' },
@@ -67,6 +67,8 @@ export default function Tradeoff({ data }) {
   const sens = pareto.sensitivity
   const tvNoUtil = sens['no utility axis'].tvae
   const tvWeak = sens['privacy = 4 numeric'].tvae
+  const leakyNoUtil = Math.max(sens['no utility axis'].tvae, sens['no utility axis'].tabular_diffusion, sens['no utility axis'].tabular_diffusion_reg)
+  const off = arms.filter((a) => !pareto.frontier[a.id]).map((a) => a.label)
 
   const table = {
     caption: 'Position of each generator on the chosen measures, mean ± one standard deviation over 20 seeds',
@@ -112,7 +114,8 @@ export default function Tradeoff({ data }) {
             legend={<Legend arms={arms} hidden={hidden} onToggle={toggle} />}
             takeaway={
               <>
-                <b>Nothing sits in the best corner.</b> TVAE buys utility with leakage and distance from the real data; CTGAN and the floor leak least but predict least; the copulas sit in between.
+                <b>Nothing sits in the best corner.</b> TVAE and the two diffusion settings buy utility with leakage; CTGAN and the floor leak least but predict least; the copulas
+                sit in between, the tuned one (shrink 0.10) closest to the corner.
               </>
             }
           >
@@ -129,7 +132,7 @@ export default function Tradeoff({ data }) {
               <h3>What the frontier says</h3>
               <p className="muted small" style={{ marginTop: 6 }}>
                 A generator is on the frontier if no other one is at least as good on all three measures and better on one.{' '}
-                {allOn ? 'All five are on it.' : 'Not every generator is on it.'} The share below is how often each stays on the frontier when the 20 seeds are resampled.
+                {allOn ? `All ${arms.length} are on it.` : `All but ${off.join(' and ')} are on it.`} The share below is how often each stays on the frontier when the 20 seeds are resampled.
               </p>
               <div className="tablewrap">
                 <table>
@@ -157,7 +160,7 @@ export default function Tradeoff({ data }) {
                 </table>
               </div>
               <p className="takeaway">
-                <b>When every generator is on the frontier, it does not rank them.</b> It only shows which way each one trades.
+                <b>When almost every generator is on the frontier, it does not rank them.</b> It only shows which way each one trades.
               </p>
             </div>
 
@@ -176,8 +179,8 @@ export default function Tradeoff({ data }) {
                 />
               </div>
               <p className="takeaway">
-                <b>TVAE's place rests on utility alone:</b> without that measure it is on the frontier {Math.round(tvNoUtil * 100)}% of the time. With the weak 4-column attack as
-                the privacy measure it looks safest, at {Math.round(tvWeak * 100)}%.
+                <b>The leaky generators&rsquo; places rest on utility alone:</b> without that measure TVAE and both diffusion settings are on the frontier at most{' '}
+                {Math.round(leakyNoUtil * 100)}% of the time. With the weak 4-column attack as the privacy measure TVAE looks safe, at {Math.round(tvWeak * 100)}%.
               </p>
             </div>
           </div>

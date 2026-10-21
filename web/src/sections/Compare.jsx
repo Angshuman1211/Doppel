@@ -3,7 +3,8 @@ import ChartCard from '../components/ChartCard'
 import SegmentedControl from '../components/SegmentedControl'
 import DotPlot from '../charts/DotPlot'
 import { FAMILY_COLOR, Swatch } from '../lib/marks'
-import { f3 } from '../lib/format'
+import { f3, niceTicks } from '../lib/format'
+import { LEAKY, NEURAL, NOT_LEAKY, argmax, domainFor, pct0, range } from '../lib/groups'
 
 const UTILITY = [
   { value: 'tstr_rf', label: 'Random forest' },
@@ -39,7 +40,8 @@ const tableFor = (arms, rows, caption, valueLabel) => ({
 export default function Compare({ data }) {
   const [util, setUtil] = useState('tstr_rf')
   const [attack, setAttack] = useState('worst')
-  const { arms, results: r, refs } = data
+  const { arms, results: r, refs, mortality } = data
+  const name = (id) => arms.find((a) => a.id === id)?.label ?? id
 
   const armRow = (a, m, tip) => ({ key: a.id, label: a.label, short: a.short, shape: a.marker, color: FAMILY_COLOR[a.family], mean: m.mean, sd: m.sd, tip })
 
@@ -53,11 +55,19 @@ export default function Compare({ data }) {
   const pr = arms.map((a) => r[a.id].privacy[attack])
   const prRows = arms.map((a, i) => armRow(a, pr[i], [['Attack score (mean)', f3(pr[i].mean)], ['Spread (± 1 sd)', f3(pr[i].sd)], ['Above guessing (0.5)', f3(pr[i].mean - 0.5)]]))
 
-  const neuralJsd = (r.ctgan.fidelity.jsd.mean + r.tvae.fidelity.jsd.mean) / 2
   const copJsd = r.gaussian_copula.fidelity.jsd.mean
-  const tv = r.tvae.privacy[attack].mean
-  const rest = ['independent_marginals', 'gaussian_copula', 'gaussian_copula_shrink025', 'ctgan'].map((a) => r[a].privacy[attack].mean)
-  const tvLowest = tv < Math.min(...rest)
+  const [nLo, nHi] = range(NEURAL, (a) => r[a].fidelity.jsd.mean)
+  const farthest = argmax(NEURAL, (a) => r[a].fidelity.jsd.mean)
+  const fidAxis = domainFor(fid, [], { floorZero: true, niceTicks })
+  const utAxis = domainFor(ut, [0.5, ceiling], { niceTicks, count: 7 })
+  const prAxis = domainFor(pr, [0.5, refs.fail_line], { niceTicks, count: 7 })
+
+  const priv = (a) => r[a].privacy[attack].mean
+  const top = argmax(arms.map((a) => a.id), priv)
+  const [restLo, restHi] = range(NOT_LEAKY, priv)
+  const blind = !LEAKY.includes(top) || priv('tvae') <= restLo
+  const topUtil = argmax(arms.map((a) => a.id), (a) => r[a].utility[util].mean)
+  const bestHonest = argmax(NOT_LEAKY, (a) => r[a].utility[util].mean)
 
   return (
     <section id="compare" aria-labelledby="h-compare">
@@ -84,12 +94,12 @@ export default function Compare({ data }) {
             table={tableFor(arms, fid, 'Fidelity distance, mean and spread over 20 seeds', 'Distance')}
             takeaway={
               <>
-                <b>CTGAN and TVAE are about {(neuralRatio(neuralJsd, copJsd))}× further from the real data</b> than the copulas ({f3(r.ctgan.fidelity.jsd.mean)} and{' '}
-                {f3(r.tvae.fidelity.jsd.mean)} against {f3(copJsd)}). The floor ties with the copulas because it copies each column exactly.
+                <b>The neural generators are {(nLo / copJsd).toFixed(1)} to {Math.round(nHi / copJsd)}× further from the real data</b> than the copulas ({f3(nLo)} to{' '}
+                {f3(nHi)} against {f3(copJsd)}), {name(farthest)} furthest. The floor ties with the copulas because it copies each column exactly.
               </>
             }
           >
-            <DotPlot rows={fidRows} domain={[0, 0.13]} ticks={[0, 0.03, 0.06, 0.09, 0.12]} label="Fidelity distance by generator" />
+            <DotPlot rows={fidRows} domain={fidAxis.domain} ticks={fidAxis.ticks} label="Fidelity distance by generator" />
           </ChartCard>
 
           <ChartCard
@@ -99,15 +109,17 @@ export default function Compare({ data }) {
             table={tableFor(arms, ut, `Prediction score (AUROC, ${util === 'tstr_rf' ? 'random forest' : 'logistic regression'}), mean and spread over 20 seeds`, 'AUROC')}
             takeaway={
               <>
-                <b>TVAE reaches the real-data ceiling ({f3(ceiling)})</b>, but only because it copies training rows, as the privacy charts below show. The spread between runs
-                (up to {f3(Math.max(...ut.map((u) => u.sd)))}) is bigger than most gaps between the other generators.
+                <b>The top score, {name(topUtil)}&rsquo;s {f3(r[topUtil].utility[util].mean)}, is not real utility.</b> It generates {pct0(mortality[topUtil].mean)} deaths against
+                a real {pct0(data.dataset.train_mortality_rate)}, and TVAE ({pct0(mortality.tvae.mean)} deaths) reaches the real-data ceiling of {f3(ceiling)} by copying. Of the generators
+                that do not leak, {name(bestHonest)} scores highest ({f3(r[bestHonest].utility[util].mean)}). The spread between runs, up to{' '}
+                {f3(Math.max(...ut.map((u) => u.sd)))}, is bigger than most gaps.
               </>
             }
           >
             <DotPlot
               rows={utRows}
-              domain={[0.3, 0.95]}
-              ticks={[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]}
+              domain={utAxis.domain}
+              ticks={utAxis.ticks}
               refs={[
                 { value: 0.5, label: 'Guessing 0.5' },
                 { value: ceiling, label: 'Real-data ceiling' },
@@ -122,23 +134,23 @@ export default function Compare({ data }) {
             better="lower"
             table={tableFor(arms, pr, `Membership attack score (${ATTACK_NAME[attack]}), mean and spread over 20 seeds`, 'Attack score')}
             takeaway={
-              tvLowest ? (
+              blind ? (
                 <>
-                  <b>This attack cannot see the leak:</b> it scores TVAE at {f3(tv)}, the lowest of any generator, even though TVAE copies its training data. Switch to
-                  "Worst case" to see it.
+                  <b>This attack barely sees the leaks:</b> it scores TVAE at {f3(priv('tvae'))} and the regularized diffusion model at {f3(priv('tabular_diffusion_reg'))},
+                  no higher than the generators that do not leak ({f3(restLo)} to {f3(restHi)}). Switch to &ldquo;Worst case&rdquo; to see them.
                 </>
               ) : (
                 <>
-                  <b>TVAE leaks most</b> ({f3(tv)} against {f3(Math.min(...rest))} to {f3(Math.max(...rest))}). A score of 0.5 means the attacker is only guessing; 0.65 is the
-                  protocol's fail line.
+                  <b>{name(top)} leaks most</b> ({f3(priv(top))}), then {LEAKY.filter((a) => a !== top).map((a) => `${name(a)} (${f3(priv(a))})`).join(' and ')}, against{' '}
+                  {f3(restLo)} to {f3(restHi)} for the rest. A score of 0.5 means the attacker is only guessing; 0.65 is the protocol&rsquo;s fail line.
                 </>
               )
             }
           >
             <DotPlot
               rows={prRows}
-              domain={[0.45, 0.75]}
-              ticks={[0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75]}
+              domain={prAxis.domain}
+              ticks={prAxis.ticks}
               refs={[
                 { value: 0.5, label: 'Guessing 0.5' },
                 { value: refs.fail_line, label: 'Fail line 0.65' },
@@ -152,6 +164,3 @@ export default function Compare({ data }) {
   )
 }
 
-function neuralRatio(neural, copula) {
-  return (neural / copula).toFixed(0)
-}

@@ -42,8 +42,12 @@ LABELS = {
     "independent_marginals": "Independent marginals",
     "gaussian_copula": "Gaussian copula",
     "gaussian_copula_shrink025": "Gaussian copula, shrink 0.25",
+    "gaussian_copula_shrink010": "Gaussian copula, shrink 0.10",
     "ctgan": "CTGAN",
+    "ctgan_small": "CTGAN, small networks",
     "tvae": "TVAE",
+    "tabular_diffusion": "Tabular diffusion",
+    "tabular_diffusion_reg": "Tabular diffusion, regularized",
 }
 
 

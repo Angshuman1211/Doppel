@@ -92,7 +92,7 @@ export default function Datasets({ arms }) {
           <h2 id="h-data">Look at the synthetic records</h2>
           <p>
             Pick a generator and a random seed to see the table it produced: its column types, the generator&rsquo;s manifest, and how its columns compare to the real training rows. This covers
-            the Streamlit dashboard&rsquo;s dataset explorer and its real-data comparison, for all 100 evaluated files.
+            the Streamlit dashboard&rsquo;s dataset explorer and its real-data comparison, for all 180 evaluated files.
           </p>
         </div>
 

@@ -33,7 +33,7 @@ export const ROADMAP = [
     weeks: 'Weeks 8-11',
     cells: {
       t1: ['done', 'TabDDPM-style diffusion generator, 390 tuning fits across every family, final-comparison settings chosen'],
-      t2: ['partial', 'Five generators x 20 seeds, calibrated attacks with a positive control, validated Pareto frontier, this site. Evaluation of the four Phase 3 settings is running'],
+      t2: ['done', 'Nine generator settings x 20 seeds, calibrated attacks with two positive controls, validated Pareto frontier, this site'],
       t3: ['partial', 'Manifest dtype fix, preprocessing Job on shared storage, byte-identical CSVs on Windows and Linux'],
       t4: ['partial', 'Generation and evaluation Jobs on shared storage, Streamlit dashboard with uploads and a Pareto view. Jobs run one at a time, no orchestration'],
     },
@@ -43,7 +43,7 @@ export const ROADMAP = [
     weeks: 'Weeks 12-14',
     cells: {
       t1: ['partial', 'Methodology and results report plan, generator architecture doc'],
-      t2: ['partial', 'Evaluation section and static Pareto figure written. Final tables wait for the running evaluation'],
+      t2: ['done', 'Evaluation section of the report, final tables and the Pareto figure, all for nine settings'],
       t3: ['none', 'Data and methodology appendix'],
       t4: ['none', 'Demo video, README polish, slides, report assembly'],
     },
@@ -73,7 +73,7 @@ export const TERMS = [
 ]
 
 export const LIMITS = [
-  ['Four of the nine settings are not on this page yet.', 'The diffusion model and the tuned copula and CTGAN settings exist and are being run through the same evaluation. Until that finishes, every chart covers the first five.'],
+  ['Utility cannot rank the generators.', 'The highest prediction scores belong to generators that copy or that generate the wrong rate of deaths, so read utility next to the other two measures.'],
   ['The dataset is tiny.', '94 training rows and a 35-row held-out set with 6 positives. The 20 seeds vary the generators and not the patients.'],
   ['Utility differences are mostly noise.', 'Seed-to-seed spread is 0.09 to 0.20 AUROC, larger than most gaps between generators.'],
   ['The attack scores are proxies.', 'They come from generators fit on 47 rows, and a direct attack on the full-size generator has no valid non-members.'],
@@ -87,6 +87,7 @@ export const DOCS = [
   ['Evaluation protocol', 'docs/eval_protocol.md', 'Formulas, thresholds and generator arms'],
   ['Literature survey', 'docs/membership_inference_survey.md', '18 checked sources on membership inference'],
   ['Generator sweep', 'docs/sweep_result.md', 'Track 1: memorization against fidelity'],
+  ['Final evaluation result', 'docs/final_evaluation_result.md', 'All nine settings, every metric, the frontier and its tests'],
   ['Evaluation section of the report', 'docs/report_evaluation_section.md', 'The protocol and the results, written up for the report'],
   ['Decisions and problems log', 'docs/problems_and_decisions.md', 'ADR-001 to 030 and P-001 to 021'],
   ['Project README', 'README.md', 'Status, architecture and how to run everything'],

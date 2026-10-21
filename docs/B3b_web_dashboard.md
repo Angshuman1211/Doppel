@@ -16,15 +16,17 @@ Show the evaluation's results to someone who has not read the result docs: which
 
 ### 1. Seven sections
 
+Trimmed on 2026-10-21 to what a reader needs: the attack-by-attack calibration charts, the coverage chart, the attribute-inference table, the frontier table, the sensitivity heatmap, the status matrix and the column and manifest tables moved off the page (the first five are in [`final_evaluation_result.md`](final_evaluation_result.md), the last two in the Upload section), taking the page from about 15,000 to 10,400 px.
+
 | Section | What it shows |
 |---|---|
-| Overview | The headline number (TVAE's worst-case membership AUROC), four summary tiles and three findings, each with its evidence |
-| Compare | Fidelity, utility and privacy per arm as dot plots with ±1 sd whiskers, filtered by classifier and by attack |
-| Trade-offs | A scatter over any two of the three axes, the frontier table with bootstrap frequencies, and the eight-way sensitivity heatmap |
-| Privacy | Each attack against its ceiling and floor, TPR at 1% FPR, how many training rows each generator's output sits nearest to, the once-seen-code channel, and the attribute-inference member gaps with p-values |
-| Data | The synthetic tables themselves: a 20-row preview, column types with distinct and missing counts, the generator manifest, per-column fidelity against the real training rows, and a real-versus-synthetic view of any one column |
+| Overview | The headline number (the diffusion model's worst-case membership AUROC), four summary tiles and three findings, each with its evidence |
+| Compare | Fidelity, utility and privacy for all nine arms as dot plots with ±1 sd whiskers, filtered by classifier and by attack |
+| Trade-offs | A scatter over any two of the three axes, and one card on what the Pareto frontier does and does not say |
+| Privacy | How many training patients an attacker identifies at 1% false alarms, and three reasons the attacks can be trusted |
+| Data | The synthetic records themselves: a 10-row preview, per-column fidelity against the real training rows, and a real-versus-synthetic view of any one column |
 | Upload | The Streamlit app's three tabs, in the browser: explore an uploaded dataset, compare it to the real one (contract check, fidelity, a memorization signal, per-column divergence, a column view), and rank uploaded evaluation reports on a Pareto frontier. See section 6 |
-| Project | Pipeline steps, a status matrix by track and phase, what the page does not show, and a plain-language glossary |
+| Project | The four pipeline steps with their status, the dataset, how to read the results with care, the main documents, and six terms explained |
 
 ### 2. Data layer
 

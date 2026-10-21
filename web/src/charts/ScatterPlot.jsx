@@ -44,7 +44,10 @@ export default function ScatterPlot({ points, xAxis, yAxis, label }) {
       const clash =
         boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1) ||
         pts.some((q) => q !== p && q.cx > b.x1 - 9 && q.cx < b.x2 + 9 && q.cy > b.y1 - 9 && q.cy < b.y2 + 9)
-      if (inside && !clash) {
+      // A label that sits closer to another point than to its own reads as that point's name, so reject it.
+      const gap = (q) => Math.hypot(Math.max(b.x1 - q.cx, 0, q.cx - b.x2), Math.max(b.y1 - q.cy, 0, q.cy - b.y2))
+      const misleading = pts.some((q) => q !== p && gap(q) < gap(p) + 4)
+      if (inside && !clash && !misleading) {
         chosen = { b, dx, dy, anchor }
         break
       }

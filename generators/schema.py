@@ -44,3 +44,16 @@ def lab_ids(df: pd.DataFrame) -> list[str]:
 
 def lab_pair(item_id: str) -> tuple[str, str]:
     return f"lab_{item_id}_mean", f"lab_{item_id}_abnormal_frac"
+
+
+# Subjects whose admissions all sit on one side of the split and distort holdout balance.
+# Subject 41976: 15 admissions, male, all Puerto Rican, all in holdout and none in train.
+# Without them holdout is 20 rows (12 F / 8 M) instead of 35, and the train split is unchanged.
+# See P-003 and P-011 in docs/problems_and_decisions.md.
+HOLDOUT_EXCLUDED_SUBJECTS = frozenset({41976})
+
+
+def clean_holdout(df: pd.DataFrame) -> pd.DataFrame:
+    """Real holdout rows without HOLDOUT_EXCLUDED_SUBJECTS. Use it wherever ethnicity or gender balance matters."""
+    holdout = df[df[SPLIT_COL] != TRAIN_SPLIT]
+    return holdout[~holdout["subject_id"].isin(HOLDOUT_EXCLUDED_SUBJECTS)].reset_index(drop=True)

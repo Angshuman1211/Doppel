@@ -2,7 +2,7 @@
 
 **Phase:** Phase 4 — Finalization & Delivery
 **Owner:** Rayyan (Track 2 / Track B), per the blueprint's Phase 4 split: "Write the Evaluation section of the report" and "prepare final metric tables and result plots for the Pareto frontier."
-**Status:** Structure and verified numbers, sourced entirely from result docs already in the repo. Prose is written by hand from this, not generated. Matches the format of [`report_methodology_results_blueprint.md`](report_methodology_results_blueprint.md) (Track 1's Methodology/Results sections), so the two read as one report.
+**Status:** Structure and verified numbers for all nine arms (updated 2026-10-21 after Track 2's own run of the four Phase 3 arms), sourced entirely from result docs in the repo. The prose version is [`report_evaluation_section.md`](report_evaluation_section.md). Prose is written by hand from this, not generated. Matches the format of [`report_methodology_results_blueprint.md`](report_methodology_results_blueprint.md) (Track 1's Methodology/Results sections), so the two read as one report.
 
 How to use this: each numbered item is one paragraph. The bullets are what that paragraph covers, in that order. Numbers in **bold** are verified and sourced; the source doc is named so every claim in the report can be traced back.
 
@@ -34,60 +34,59 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 
 **E5. The membership-inference suite, and why one attack is not enough.**
 - Shadow-model attack (8 shadow generators, leave-one-shadow-out logistic regression), run three ways: `numeric4` (4 numeric columns), `gower` (all 53 features), `icd9_codes` (Jaccard on code sets). The **worst of the three** is the reported privacy score.
-- State the reason plainly: the 4-column attack alone reads **0.503–0.518** for every arm in the project, including the generator known to memorize, so a report that used it alone would call every generator safe.
+- State the reason plainly: the 4-column attack reads **0.503–0.523** for eight of the nine arms, TVAE and the regularized diffusion model included, so a report that used it alone would call almost every generator safe.
 - Calibration anchors from `evaluation/mia_calibration.py`: an exact-copy ceiling scores **1.000** on every attack; real holdout rows the generator never saw (the floor) score **0.489–0.503**. Every reported attack number sits between these two anchors.
-- Ground the design in the literature: [`membership_inference_survey.md`](membership_inference_survey.md) checked 18 sources against their primary record (arXiv/publisher/PoPETs/PMC) and placed Doppel's attacks in the distance-to-closest-record family used by the SynthEHRella and Nature Communications EHR benchmarks. Five gaps against the literature were identified; three are closed (pooled TPR at low FPR, a per-record exposure report, a density check via `synthetic_coverage`), two are open (a density-based attack proper, a release-only attacker without shadow-model access).
+- Ground the design in the literature: [`membership_inference_survey.md`](membership_inference_survey.md) checked 18 sources against their primary record and placed Doppel's attacks in the distance-to-closest-record family used by the SynthEHRella and Nature Communications EHR benchmarks. Five gaps against the literature were identified; three are closed (pooled TPR at low FPR, a per-record exposure report, a density check via `synthetic_coverage`), two are open (a density-based attack proper, a release-only attacker without shadow-model access).
 
-**E6. The positive control: does the attack suite actually catch a generator that leaks?**
-- A privacy score is meaningless until it is shown to catch a generator that is known, independently, to memorize. TVAE is that control: Track 1's sweep found it reproduces **52–71%** of its rows as near-copies.
-- The suite catches it on two of three attacks: worst-case membership AUROC **0.680** against **0.637–0.651** for the other four arms (p < 0.0001 against each, Welch test, 20 seeds), and pooled TPR at 1% FPR **0.058** against a floor of **0.009** — about 6× the attack's own chance rate.
-- The suite also shows where a single attack can mislead: the 4-column attack rates TVAE **0.503**, the *lowest* of all five arms, so a report using only that attack would call the memorizing generator the safest one.
-- Mechanism, not just the number: TVAE's synthetic rows sit nearest to only **31 of 94** training rows (its output collapses), against **40–47** for the other four arms, and up to **24** synthetic rows crowd onto a single training row against 8–14 elsewhere.
+**E6. Two positive controls: does the suite catch generators that leak?**
+- A privacy score is meaningless until it catches generators known, independently, to memorize. There are now two, both identified by Track 1's in-train check before any attack ran: TVAE (52–71% near-copies) and the 3000-step diffusion model (80%).
+- The suite ranks both above every non-copying arm: worst case **0.787** (diffusion) and **0.680** (TVAE) against **0.632–0.656** for the copulas, floor and CTGAN arms; p < 0.0001 against every other arm for each, except TVAE against the tuned copula (p = 0.0002).
+- Low false-alarm view: at 1% FPR the Gower attack finds **36%** of the diffusion model's training patients, 21% of the regularized one's and 5.8% of TVAE's, against 1.0–4.3% for the rest and 1% chance.
+- The guard is not sufficient: the regularized diffusion model passed Track 1's guard (8.4% near-copies) and still has the second-highest worst case, **0.706**, above TVAE (p < 0.0001).
+- Mechanism: TVAE's output sits nearest to **31** of 94 training rows and the regularized diffusion model's to **25**, against 39–47 for non-copying arms; the 3000-step diffusion model spreads over **51** while reproducing them closely.
 
 **E7. A leakage channel that belongs to the approach, not to one model.**
-- Codes seen only once in train leak through *every* generator, including CTGAN, which learned no other dependence: `codes_once` AUROC **0.821–0.839** against a floor of **0.481**.
-- State the mechanism: a generator can only emit a code it saw in training, so a code that appears in exactly one training admission re-identifies that admission whenever the synthetic output contains it — a property of modeling discrete codes at all, not of any one architecture.
-- Contrast with TVAE's own leakage, which is *not* through rare codes (per-record exposure Spearman **−0.011** against once-seen-code count, versus **0.20–0.28** for the other arms) — it leaks through ordinary rows instead, consistent with E6.
+- Codes seen only once in train leak through *every* arm, both CTGAN configurations included: `codes_once` AUROC **0.821–0.853** against a floor of **0.481**.
+- Mechanism: a generator can only emit a code it saw in training, so a code in exactly one training admission identifies it whenever the synthetic output contains it.
+- The copying generators leak through ordinary records instead: per-record exposure against once-seen codes, Spearman **−0.53** (diffusion) and **−0.01** (TVAE), against 0.12–0.37 for the non-copying arms.
 
 **E8. Attribute inference.**
-- Design: an attacker trained on synthetic data predicts a withheld attribute from the rest of a row; the privacy-relevant number is the **member gap** (accuracy uplift on real train rows minus uplift on real holdout rows), read against `independent_marginals`, which has no column dependence to exploit.
-- Targets: `gender`, `first_careunit`, `age_bucket` — the three attributes with class coverage in both splits. The original target, `ethnicity`, is superseded: one patient holds 15 of 35 holdout admissions, all one ethnicity category absent from train entirely, so the attacker predicted the majority class every run and the result was not scored (P-003).
-- Headline number: TVAE's gender gap is **0.183 ± 0.126** (p = 0.0004 against the floor), about **4×** the no-dependence control's **0.042**, so the positive control shows up on this attack too.
+- Design: an attacker trained on synthetic data predicts a withheld attribute from the rest of a row; the privacy-relevant number is the **member gap** (uplift on real train rows minus uplift on real holdout rows), read against `independent_marginals`.
+- Targets: `gender`, `first_careunit`, `age_bucket`. The original target, `ethnicity`, is superseded: 15 of 35 holdout admissions belong to one category absent from train, so the attacker predicted the majority class every run (P-003).
+- Headline: the 3000-step diffusion model has the largest gap on all three targets (gender **0.286**, first care unit 0.142, age group 0.221, each p < 0.0001); TVAE's gender gap **0.183** (p = 0.0004), about **4×** the floor's 0.042. 24 uncorrected tests.
 
 **E9. The headline benchmark (Track 2's own harness, verified).**
-- 5 arms × 20 seeds = 100 runs, every metric above, one environment (Python 3.11.9, numpy 2.4.6, torch 2.14.0+cpu, ctgan 0.12.1). Full table: [`full_evaluation_result.md`](full_evaluation_result.md).
-- State the honest headline, verbatim from that doc: *"on 94 training rows the statistical baseline matches or beats both neural generators on fidelity and privacy, TVAE matches the real-data utility ceiling only by copying training rows, CTGAN produces data no more useful or more private than independent marginals, and no arm dominates on fidelity, utility and privacy together."*
-- Table: mean JSD **0.0162–0.0165** for the floor and both copulas vs **0.0937–0.1063** for CTGAN/TVAE; TSTR (random forest) **0.480 → 0.738** across arms; worst-case membership **0.637–0.680**.
+- 9 arms × 20 seeds = 180 runs, three families: floor; copula at Ledoit-Wolf, 0.25 and 0.10 shrinkage; CTGAN original and tuned; TVAE; diffusion at 3000 steps and at the regularized, guard-passing setting. One environment: three of the first five arms were rerun on the second run date and reproduced exactly. Full table: [`final_evaluation_result.md`](final_evaluation_result.md).
+- Honest headline, verbatim from that doc: *"across nine configurations of three families on 94 training rows, the statistical baseline is the only family that is faithful without copying; both neural families fail in one of two ways, by learning no dependence (CTGAN) or by reproducing training patients (TVAE and diffusion), and the diffusion model that copies leaks more than any other arm; utility cannot rank the arms, because the highest scores belong to arms that copy or that generate the wrong rate of deaths."*
+- Numbers: mean JSD **0.016** for copulas and floor against 0.042–0.378 for neural arms; tuned copula best correlation (**0.102**), utility 0.686 (vs TVAE 0.704, p = 0.68), worst case 0.656.
+- Utility trap: diffusion RF TSTR **0.810** and 0.793 above the 0.737 real-data ceiling, while generating **45%** and **79%** deaths against a real 36%; TVAE generates **21%** and still matches the ceiling.
 
 **E10. The Pareto frontier.**
-- `evaluation/pareto.py` reduces each arm to (fidelity, utility, worst-case privacy), marks non-dominated arms, bootstraps frontier membership and pairwise dominance probability over seeds (2,000 resamples). Full evidence: [`full_pareto_result.md`](full_pareto_result.md).
-- On the 5-arm benchmark, **all five arms are non-dominated** (bootstrap frequency **0.81–0.97**, no pairwise dominance probability above **0.16**), so the frontier shows trade-off directions, not a ranking.
-- Validated under 8 axis choices (adding correlation, one classifier at a time, one attack at a time, dropping utility entirely) and checked against the TVAE positive control: without the utility axis, TVAE's frontier frequency falls from 0.86 to **0.00**, since every other arm beats it on both remaining axes — it holds its place through utility alone, and that utility is copied signal (E9).
+- `evaluation/pareto.py` reduces each arm to (fidelity, utility, worst-case privacy), marks non-dominated arms, bootstraps membership and pairwise dominance over seeds.
+- **8 of 9** on the frontier; the original CTGAN is off it, dominated by the tuned CTGAN in 62% of resamples.
+- Sensitivity: without the utility axis, TVAE and both diffusion settings fall to **0.00**; with a correlation axis, the tuned copula is on the frontier in every resample (1.00).
 
-**E11. Status: what is verified, and what is not yet folded in.**
-- The 5-arm/100-run benchmark above (E9–E10) is Track 2's own, reproduced on this machine, and is the verified baseline for this report.
-- Track 1's Phase 3 tuning (ADR-029) added four arms to `evaluation/arms.py` — a tuned copula, a tuned CTGAN, and two diffusion configs — and ran Track 2's unchanged harness to produce a 9-arm/180-run table, written up in [`final_comparison_result.md`](final_comparison_result.md). That doc is explicit that it is evidence for Track 2 to fold in, not a replacement for this section.
-- Those 9-arm numbers are **not yet independently reproduced by Track 2** and are not reported as verified in this section. Headline figures from that run (diffusion privacy leak up to **0.787**, both diffusion arms exceeding the train-on-real utility ceiling with a badly wrong class prior — synthetic mortality **0.81** against real **0.36**) are real findings on record, but belong to Track 1's Results section until Track 2 reruns and incorporates them into `full_evaluation_result.md` and this one.
-- Plan: rerun `evaluation.eval_runner` over the four new arms in Track 2's own environment, fold the output into `full_evaluation_result.md` and `full_pareto_result.md`, and update this section's E9–E10 numbers before final submission.
+**E11. Agreement with Track 1's run, and what is not claimed.**
+- Track 1 ran the same nine arms on another machine ([`final_comparison_result.md`](final_comparison_result.md)): every conclusion and the privacy order agree; numbers match closely but not exactly, even for the deterministic copulas; the cause was not identified.
+- Two frontier readings differ between runs and are not used: TVAE's frequency (0.37 vs 0.59) and the tuned copula's frequency without utility (a 0.0001 JSD gap to the floor, p = 0.69).
+- Limits: one 94-row dataset, a 35-row holdout with six deaths, seeds resample generators not patients, uncorrected p-values, neural configs tuned once on this data; an AUROC near 0.5 means the attacks found nothing, not that the data is safe.
 
 **E12. Final metric tables and result plots for the Pareto frontier.**
-- Interactive version: the [React dashboard](../web) (Compare, Trade-offs and Privacy sections) renders every table above as a chart with a table twin, filters, and tooltips, built from this evaluation's own JSON output.
-- Static version, for the written report itself: the tables in E9–E10 and the raw `evaluation.summarize_results` / `evaluation.pareto` output in [`full_evaluation_result.md`](full_evaluation_result.md) and [`full_pareto_result.md`](full_pareto_result.md).
-- Outstanding for Phase 4: a static exported figure (PNG/SVG) of the fidelity–utility–privacy scatter for the Word/PDF report, since the dashboard itself can't be embedded in a static document. [TODO: export once the arm rerun in E11 lands, so the figure isn't redone twice.]
+- Interactive version: the [React dashboard](../web) renders the tables as charts with table views, filters and tooltips; its Upload section re-ranks any set of result files a reader supplies.
+- Static version for the written report: Figure 1, [`figures/pareto_frontier.png`](figures/pareto_frontier.png) (nine arms, drawn by `evaluation/plot_pareto.py` from `evaluation.pareto`'s own loader), and the tables in [`final_evaluation_result.md`](final_evaluation_result.md).
 
 ---
 
 ## Verified numbers
 
-Every figure above traces to one of: [`eval_protocol.md`](eval_protocol.md) (protocol and formulas), [`full_evaluation_result.md`](full_evaluation_result.md) (5-arm benchmark), [`full_pareto_result.md`](full_pareto_result.md) (frontier), [`positive_control_result.md`](positive_control_result.md) (attack calibration and the TVAE control), [`membership_inference_survey.md`](membership_inference_survey.md) (literature grounding), [`problems_and_decisions.md`](problems_and_decisions.md) (P-003, P-007, ADR-029).
-
-The 9-arm numbers quoted in E11 trace to [`final_comparison_result.md`](final_comparison_result.md) and are marked there, and here, as not yet reproduced by Track 2.
+Every figure above traces to one of: [`eval_protocol.md`](eval_protocol.md) (protocol and formulas), [`final_evaluation_result.md`](final_evaluation_result.md) (nine-arm benchmark, frontier, calibration of the new arms, coverage, mortality rates), [`full_evaluation_result.md`](full_evaluation_result.md) and [`full_pareto_result.md`](full_pareto_result.md) (the first five arms), [`positive_control_result.md`](positive_control_result.md) (attack calibration and the original arms' controls), [`membership_inference_survey.md`](membership_inference_survey.md) (literature grounding), [`problems_and_decisions.md`](problems_and_decisions.md) (P-003, P-007, ADR-029).
 
 ## Landmines
 
 - Do not report a single-seed AUROC anywhere — every utility and privacy number is mean ± sd over 20 seeds.
-- Do not call the 4-column membership attack "the privacy score" on its own; it misses the known positive control (E6).
-- Do not present TVAE's TSTR AUROC (or either diffusion arm's) as evidence the generator "preserves utility" — in all three cases the number comes from copying or a distorted class prior, not learned signal.
+- Do not call the 4-column membership attack "the privacy score" on its own; it misses both positive controls (E5, E6).
+- Do not present TVAE's TSTR AUROC, or either diffusion arm's, as evidence the generator "preserves utility" — in all three cases the number comes from copying or a distorted rate of deaths, not learned signal (E9).
+- Do not say any arm beats real data on utility; the diffusion arms' scores above the ceiling come from a wrong prior and a noisy 6-positive holdout.
+- Do not present Track 1's in-train memorization guard as a privacy guarantee; the regularized diffusion model passed it and leaks second-most (E6).
 - Do not state a pass/fail fidelity or correlation threshold; both were explicitly dropped (E3) because the real-vs-real floor already fails them.
-- Do not present the Pareto frontier as ranking the generators — on every arm set evaluated so far, most or all arms are non-dominated.
-- Do not cite the 9-arm `final_comparison_result.md` numbers as Track 2-verified until the E11 rerun happens; attribute them to Track 1's run explicitly if used before then.
+- Do not present the Pareto frontier as ranking the generators — eight of nine arms are non-dominated.

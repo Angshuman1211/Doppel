@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: doppel-diffusion
+  namespace: doppel
+  labels:
+    project: doppel
+    component: generation
+    generator: tabular-diffusion
+    track: track4
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: doppel-diffusion
+        project: doppel
+        component: generation
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: diffusion-generator
+          image: doppel/diffusion:0.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - -m
+            - generators.generate
+            - --generator
+            - tabular_diffusion
+            - --seed
+            - "42"
+          # Defaults are the 3000-step configuration (ADR-029). For the regularised variant, which is the
+          # only setting that stops it copying, add: --param steps=1000 --param dropout=0.2
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: shared-storage
+              mountPath: /app/output
+              subPath: output
+      volumes:
+        - name: shared-storage
+          persistentVolumeClaim:
+            claimName: doppel-shared-pvc

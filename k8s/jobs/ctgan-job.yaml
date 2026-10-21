@@ -31,8 +31,22 @@ spec:
             - ctgan
             - --seed
             - "42"
+            # The configuration Track 1's tuning selected (ADR-029), not the epochs=1 smoke value.
             - --param
-            - epochs=1
+            - epochs=300
+            - --param
+            - embedding_dim=32
+            - --param
+            - generator_dim=[64,64]
+            - --param
+            - discriminator_dim=[64,64]
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
           volumeMounts:
             - name: shared-storage
               mountPath: /app/output

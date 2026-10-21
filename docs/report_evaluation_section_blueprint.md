@@ -62,7 +62,7 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 **E10. The Pareto frontier.**
 - `evaluation/pareto.py` reduces each arm to (fidelity, utility, worst-case privacy), marks non-dominated arms, bootstraps frontier membership and pairwise dominance probability over seeds (2,000 resamples). Full evidence: [`full_pareto_result.md`](full_pareto_result.md).
 - On the 5-arm benchmark, **all five arms are non-dominated** (bootstrap frequency **0.81–0.97**, no pairwise dominance probability above **0.16**), so the frontier shows trade-off directions, not a ranking.
-- Validated under 8 axis choices (adding correlation, one classifier at a time, one attack at a time, dropping utility entirely) and checked against the TVAE positive control: without the utility axis, TVAE's frontier frequency falls from 0.84 to **0.00**, since every other arm beats it on both remaining axes — it holds its place through utility alone, and that utility is copied signal (E9).
+- Validated under 8 axis choices (adding correlation, one classifier at a time, one attack at a time, dropping utility entirely) and checked against the TVAE positive control: without the utility axis, TVAE's frontier frequency falls from 0.86 to **0.00**, since every other arm beats it on both remaining axes — it holds its place through utility alone, and that utility is copied signal (E9).
 
 **E11. Status: what is verified, and what is not yet folded in.**
 - The 5-arm/100-run benchmark above (E9–E10) is Track 2's own, reproduced on this machine, and is the verified baseline for this report.

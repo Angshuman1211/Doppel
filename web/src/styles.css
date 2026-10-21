@@ -282,3 +282,26 @@ html { scroll-behavior: smooth; }
 .raw { margin-top: 14px; }
 .raw summary { cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--accent-ink); }
 .raw pre { margin: 10px 0 0; padding: 12px; max-height: 300px; overflow: auto; border-radius: 10px; background: var(--surface-2); font-size: 0.78rem; line-height: 1.5; }
+
+/* ---------- Per-column fidelity bar list ---------- */
+.kindpill { display: inline-block; font-size: 0.72rem; font-weight: 650; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); margin-left: 8px; }
+.barlist { margin-top: 14px; display: grid; gap: 1px; }
+.barlist .row { display: grid; grid-template-columns: minmax(120px, 230px) 1fr 58px; align-items: center; gap: 12px; padding: 6px 0; }
+.barlist .name { font-size: 0.86rem; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barlist .track { position: relative; height: 10px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.barlist .track i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--c-blue); }
+.barlist .val { font-size: 0.84rem; font-weight: 650; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- Column-detail comparison ---------- */
+.detail-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 4px; }
+.sharebar { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 1fr; align-items: center; gap: 10px; padding: 5px 0; font-size: 0.86rem; }
+.sharebar .lab { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sharebar .pair { display: flex; align-items: center; gap: 8px; }
+.sharebar .pair .track { flex: 1; position: relative; height: 9px; border-radius: 3px; background: var(--grid); overflow: hidden; }
+.sharebar .pair .track i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; }
+.sharebar .pair .track.real i { background: var(--c-floor); }
+.sharebar .pair .track.synth i { background: var(--c-blue); }
+.sharebar .pair .v { width: 44px; text-align: right; font-size: 0.78rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.share-head { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 1fr; gap: 10px; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 10px; }
+.statcompare { width: 100%; font-size: 0.86rem; margin-top: 10px; }
+.statcompare th, .statcompare td { padding: 6px 10px 6px 0; }

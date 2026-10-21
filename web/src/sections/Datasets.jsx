@@ -32,12 +32,25 @@ function download(name, columns, rows) {
   URL.revokeObjectURL(url)
 }
 
+function Bar({ v, max }) {
+  return (
+    <div className="track">
+      <i style={{ width: `${max > 0 ? Math.min(100, (v / max) * 100) : 0}%` }} />
+    </div>
+  )
+}
+
+const FIDELITY_PREVIEW = 15
+
 export default function Datasets({ arms }) {
   const index = useData(`${BASE}data/datasets/index.json`)
+  const real = useData(`${BASE}data/datasets/real.json`)
   const [arm, setArm] = useState(null)
   const [seed, setSeed] = useState(null)
   const [all, setAll] = useState(false)
+  const [allCols, setAllCols] = useState(false)
   const [find, setFind] = useState('')
+  const [detailCol, setDetailCol] = useState(null)
 
   const list = index.data?.arms
   useEffect(() => {
@@ -57,10 +70,19 @@ export default function Datasets({ arms }) {
     setArm(id)
     setSeed(next.seeds.includes(seed) ? seed : next.seeds[0])
     setAll(false)
+    setAllCols(false)
   }
   const shown = t ? (all ? t.rows : t.rows.slice(0, PREVIEW_ROWS)) : []
   const cols = useMemo(() => (t ? t.columns.filter((c) => c.name.toLowerCase().includes(find.trim().toLowerCase())) : []), [t, find])
   const m = t?.manifest
+
+  const fidCols = t?.fidelity?.columns ?? []
+  const fidShown = allCols ? fidCols : fidCols.slice(0, FIDELITY_PREVIEW)
+  const maxJs = Math.max(0.001, ...fidCols.map((c) => c.js))
+  useEffect(() => {
+    if (fidCols.length && (!detailCol || !fidCols.some((c) => c.name === detailCol))) setDetailCol(fidCols[0].name)
+  }, [t, fidCols, detailCol])
+  const detail = detailCol && t && real.data ? { kind: fidCols.find((c) => c.name === detailCol)?.kind, synth: t.column_detail[detailCol], real: real.data.columns[detailCol] } : null
 
   return (
     <section id="data" aria-labelledby="h-data">
@@ -69,8 +91,8 @@ export default function Datasets({ arms }) {
           <span className="eyebrow">Data</span>
           <h2 id="h-data">Look at the synthetic records</h2>
           <p>
-            Pick a generator and a random seed to see the table it produced, with its column types and the record of how it was made. This is the same
-            view as the Streamlit dashboard, for all five generators.
+            Pick a generator and a random seed to see the table it produced: its column types, the generator&rsquo;s manifest, and how its columns compare to the real training rows. This covers
+            the Streamlit dashboard&rsquo;s dataset explorer and its real-data comparison, for all 100 evaluated files.
           </p>
         </div>
 
@@ -97,7 +119,7 @@ export default function Datasets({ arms }) {
               </label>
               <label className="field">
                 <span>Random seed</span>
-                <select className="select" value={seed} onChange={(e) => { setSeed(Number(e.target.value)); setAll(false) }}>
+                <select className="select" value={seed} onChange={(e) => { setSeed(Number(e.target.value)); setAll(false); setAllCols(false) }}>
                   {current.seeds.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -172,6 +194,7 @@ export default function Datasets({ arms }) {
                           <tr>
                             <th scope="col">Column</th>
                             <th scope="col">Data type</th>
+                            <th scope="col" className="n">Distinct</th>
                             <th scope="col" className="n">Missing</th>
                           </tr>
                         </thead>
@@ -180,11 +203,12 @@ export default function Datasets({ arms }) {
                             <tr key={c.name}>
                               <td>{c.name}</td>
                               <td className="muted">{c.dtype}</td>
+                              <td className="n">{c.distinct}</td>
                               <td className="n">{c.missing}</td>
                             </tr>
                           ))}
                           {cols.length === 0 && (
-                            <tr><td colSpan="3" className="muted">No column matches “{find}”.</td></tr>
+                            <tr><td colSpan="4" className="muted">No column matches “{find}”.</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -214,6 +238,100 @@ export default function Datasets({ arms }) {
                     )}
                   </div>
                 </div>
+
+                {t.fidelity && (
+                  <div className="card">
+                    <div className="chart-head">
+                      <div>
+                        <h3>Fidelity against the real training rows</h3>
+                        <p className="sub">
+                          Per-column distance between this file and the {real.data?.n_train ?? 94} real training rows, using Track 2&rsquo;s own fidelity code (the Compare section&rsquo;s method), so the mean below matches it. Worst column first.
+                        </p>
+                      </div>
+                      <div className="chart-tools">
+                        <span className="chip">Mean JS {t.fidelity.mean_js?.toFixed(4)}</span>
+                        <span className="chip">Corr. gap {t.fidelity.corr_diff?.toFixed(4)}</span>
+                      </div>
+                    </div>
+                    <div className="barlist">
+                      {fidShown.map((c) => (
+                        <div className="row" key={c.name}>
+                          <span className="name">
+                            {c.name}
+                            <span className="kindpill">{c.kind === 'numeric' ? 'num' : 'cat'}</span>
+                          </span>
+                          <Bar v={c.js} max={maxJs} />
+                          <span className="val">{c.js.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {fidCols.length > FIDELITY_PREVIEW && (
+                      <p style={{ marginTop: 10 }}>
+                        <button className="tbtn" onClick={() => setAllCols(!allCols)}>
+                          {allCols ? `Show worst ${FIDELITY_PREVIEW}` : `Show all ${fidCols.length} columns`}
+                        </button>
+                      </p>
+                    )}
+                    <p className="takeaway">
+                      Computed just now from the file above. If the evaluation files on disk were regenerated since the archived results, a neural generator&rsquo;s own numbers can drift slightly from the Compare section&rsquo;s aggregate &mdash; the deterministic arms (floor, both copulas) match it exactly.
+                    </p>
+                  </div>
+                )}
+
+                {detail && (
+                  <div className="card">
+                    <h3>Column detail: real vs this dataset</h3>
+                    <div className="detail-pick">
+                      <label className="field">
+                        <span>Column</span>
+                        <select className="select" value={detailCol} onChange={(e) => setDetailCol(e.target.value)}>
+                          {fidCols.map((c) => (
+                            <option key={c.name} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <span className="small muted">JS divergence {fidCols.find((c) => c.name === detailCol)?.js.toFixed(4)}</span>
+                    </div>
+
+                    {detail.kind === 'numeric' ? (
+                      <table className="statcompare">
+                        <thead>
+                          <tr>
+                            <th>Statistic</th>
+                            <th className="n">Real training rows</th>
+                            <th className="n">This dataset</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.keys(detail.real.stats).map((k) => (
+                            <tr key={k}>
+                              <td className="muted">{k}</td>
+                              <td className="n">{detail.real.stats[k]}</td>
+                              <td className="n">{detail.synth.stats[k]}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <>
+                        <div className="share-head"><span /><span>Real training rows</span><span>This dataset</span></div>
+                        {Object.keys({ ...detail.real.shares, ...detail.synth.shares }).map((k) => (
+                          <div className="sharebar" key={k}>
+                            <span className="lab">{k}</span>
+                            <span className="pair">
+                              <span className="track real"><i style={{ width: `${(detail.real.shares[k] ?? 0) * 100}%` }} /></span>
+                              <span className="v">{((detail.real.shares[k] ?? 0) * 100).toFixed(0)}%</span>
+                            </span>
+                            <span className="pair">
+                              <span className="track synth"><i style={{ width: `${(detail.synth.shares[k] ?? 0) * 100}%` }} /></span>
+                              <span className="v">{((detail.synth.shares[k] ?? 0) * 100).toFixed(0)}%</span>
+                            </span>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </>

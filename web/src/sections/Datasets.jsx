@@ -273,7 +273,7 @@ export default function Datasets({ arms }) {
                       </p>
                     )}
                     <p className="takeaway">
-                      Computed just now from the file above. If the evaluation files on disk were regenerated since the archived results, a neural generator&rsquo;s own numbers can drift slightly from the Compare section&rsquo;s aggregate &mdash; the deterministic arms (floor, both copulas) match it exactly.
+                      Computed from the file above with the same code and the same training rows as the evaluation, so these numbers match that seed&rsquo;s result exactly. The Compare section shows the mean over all 20 seeds.
                     </p>
                   </div>
                 )}

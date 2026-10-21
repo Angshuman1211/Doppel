@@ -305,3 +305,10 @@ html { scroll-behavior: smooth; }
 .share-head { display: grid; grid-template-columns: minmax(90px, 160px) 1fr 1fr; gap: 10px; font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 10px; }
 .statcompare { width: 100%; font-size: 0.86rem; margin-top: 10px; }
 .statcompare th, .statcompare td { padding: 6px 10px 6px 0; }
+@media (max-width: 520px) {
+  .barlist .row { grid-template-columns: 1fr 58px; row-gap: 4px; }
+  .barlist .name { grid-column: 1 / -1; }
+  .sharebar, .share-head { grid-template-columns: 1fr 1fr; row-gap: 3px; }
+  .sharebar .lab { grid-column: 1 / -1; }
+  .share-head span:first-child { display: none; }
+}

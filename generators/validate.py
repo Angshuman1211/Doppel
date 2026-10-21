@@ -48,6 +48,9 @@ def check_contract(synth: pd.DataFrame, real: pd.DataFrame) -> list[str]:
 
     kinds = {c: (real[c].dtype.kind, synth[c].dtype.kind) for c in real.columns}
     errors += [f"{c}: dtype kind '{s}' but real is '{r}'" for c, (r, s) in kinds.items() if r != s]
+    # Value checks below assume numbers. A column that already failed the dtype check (text in a lab
+    # column, say) is reported once, above, instead of crashing the comparisons here (P-021).
+    wrong_dtype = {c for c, (r, s) in kinds.items() if r != s}
 
     if not (synth[S.SPLIT_COL] == S.SYNTH_SPLIT).all():
         errors.append(f"split must be '{S.SYNTH_SPLIT}' on every row")
@@ -64,13 +67,16 @@ def check_contract(synth: pd.DataFrame, real: pd.DataFrame) -> list[str]:
         if not synth[c].isin([0, 1]).all():
             errors.append(f"{c}: values outside {{0, 1}}")
 
-    age = synth[S.AGE_COL]
-    if not age.between(0, S.AGE_CAP).all():
-        errors.append(f"{S.AGE_COL}: values outside [0, {S.AGE_CAP}]")
-    if (age[synth[S.AGE_FLAG_COL].astype(bool)] != S.AGE_CAP).any():
-        errors.append(f"{S.AGE_FLAG_COL} rows must have {S.AGE_COL} == {S.AGE_CAP}")
+    if S.AGE_COL not in wrong_dtype:
+        age = synth[S.AGE_COL]
+        if not age.between(0, S.AGE_CAP).all():
+            errors.append(f"{S.AGE_COL}: values outside [0, {S.AGE_CAP}]")
+        if (age[synth[S.AGE_FLAG_COL].astype(bool)] != S.AGE_CAP).any():
+            errors.append(f"{S.AGE_FLAG_COL} rows must have {S.AGE_COL} == {S.AGE_CAP}")
 
     for c in S.continuous_cols(real):
+        if c in wrong_dtype:
+            continue
         v = synth[c]
         if np.isinf(v).any():
             errors.append(f"{c}: infinite values")

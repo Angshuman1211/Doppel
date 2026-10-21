@@ -21,53 +21,49 @@ Doppel trains families of synthetic Electronic Health Record generators on the M
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph T3["Track 3 - Data Engineering (done)"]
-        RAW[("MIMIC-III Demo CSVs<br/>100 patients")] --> PREP["preprocess_mimic_demo.py"]
-        PREP --> CLEAN[["mimic_demo_clean.csv<br/>129 admissions x 56 cols"]]
-        PREP --> MAN[["mimic_demo_clean.manifest.json"]]
-        CLEAN --> VAL["validate_dataset.py"]
+flowchart TB
+    subgraph T3["Track 3 · Data engineering"]
+        RAW[("MIMIC-III Demo CSVs<br/>100 patients")] --> PREP["preprocess_mimic_demo.py<br/>+ validate_dataset.py"]
+        PREP --> CLEAN[["mimic_demo_clean.csv<br/>129 admissions × 56 columns + manifest"]]
     end
 
-    subgraph T1["Track 1 - Generation (diffusion not built)"]
-        CLEAN -- "train split, 94 rows" --> GEN{{"copula / CTGAN / TVAE"}}
-        GEN --> SYN[("synthetic CSV + manifest")]
-        DIFF{{"tabular diffusion"}} -.-> SYN
+    subgraph T1["Track 1 · Generation"]
+        GEN{{"copula · CTGAN · TVAE · tabular diffusion"}} --> SYN[("synthetic CSV + manifest")]
     end
 
-    subgraph T2["Track 2 - Evaluation (done for existing generators)"]
-        SYN --> EVAL["evaluation/eval_runner.py"]
-        CLEAN -- "holdout split, 35 rows" --> EVAL
-        EVAL --> RES[["results/*.json"]]
-        RES --> PARETO["evaluation/pareto.py"]
+    subgraph T2["Track 2 · Evaluation"]
+        EVAL["eval_runner.py<br/>fidelity · utility · privacy"] --> RES[["results/*.json<br/>9 settings × 20 seeds"]]
+        RES --> PARETO["pareto.py"] --> WEB["React dashboard · web/"]
     end
 
-    subgraph T4["Track 4 - Systems (partial)"]
-        IMG["Dockerfiles + K8s Jobs<br/>preprocessing, statistical, CTGAN"]
-        DASH["Streamlit scaffold<br/>shows generator manifests"]
-        EJOB["evaluation Job + results dashboard"]
+    subgraph T4["Track 4 · Systems and delivery"]
+        IMG["Docker images + Kubernetes Jobs<br/>run one at a time"]
+        DASH["Streamlit dashboard<br/>uploaded files"]
+        ORCH["orchestrated pipeline"]
     end
 
-    SYN --> DASH
-    RES -.-> EJOB
+    CLEAN -- "train split, 94 rows" --> GEN
+    CLEAN -- "holdout split, 35 rows" --> EVAL
+    SYN --> EVAL
+    WEB ~~~ IMG
 
-    style RAW fill:#e0e0e0,stroke:#999
-    style CLEAN fill:#8fd19e,stroke:#2e7d32
-    style MAN fill:#8fd19e,stroke:#2e7d32
-    style VAL fill:#8fd19e,stroke:#2e7d32
-    style PREP fill:#8fd19e,stroke:#2e7d32
-    style GEN fill:#8fd19e,stroke:#2e7d32
-    style SYN fill:#8fd19e,stroke:#2e7d32
-    style DIFF fill:#f5f5f5,stroke:#999,stroke-dasharray: 5 5
-    style EVAL fill:#8fd19e,stroke:#2e7d32
-    style RES fill:#8fd19e,stroke:#2e7d32
-    style PARETO fill:#8fd19e,stroke:#2e7d32
-    style IMG fill:#ffe9a8,stroke:#b8860b
-    style DASH fill:#ffe9a8,stroke:#b8860b
-    style EJOB fill:#f5f5f5,stroke:#999,stroke-dasharray: 5 5
+    classDef done fill:#1a7f37,stroke:#116329,color:#ffffff,stroke-width:1px
+    classDef partial fill:#9a6700,stroke:#7d4e00,color:#ffffff,stroke-width:1px
+    classDef source fill:#57606a,stroke:#424a53,color:#ffffff,stroke-width:1px
+    classDef missing fill:transparent,stroke:#8c959f,color:#8c959f,stroke-width:1px,stroke-dasharray:5 5
+
+    class PREP,CLEAN,GEN,SYN,EVAL,RES,PARETO,WEB,DASH done
+    class IMG partial
+    class RAW source
+    class ORCH missing
+
+    style T3 fill:transparent,stroke:#1a7f37,stroke-width:2px
+    style T1 fill:transparent,stroke:#1a7f37,stroke-width:2px
+    style T2 fill:transparent,stroke:#1a7f37,stroke-width:2px
+    style T4 fill:transparent,stroke:#9a6700,stroke-width:2px
 ```
 
-Green components exist and have been run by their owners' own scripts. Amber (Track 4) exists as files, but nothing in the repository shows it running, and the dashboard reads only generator manifests. Grey, dashed components don't exist. The pipeline's data path from raw CSVs to a Pareto frontier works end to end as separate scripts; what is missing is the diffusion generator and the containerized, orchestrated version of the evaluation stage.
+**Green** components exist and have been run by their owners. **Amber** exists and runs, but only partly: the Docker images and Kubernetes Jobs are launched one at a time by hand, and the Jobs do not yet use the tuned settings. **Grey and dashed** does not exist yet: the automated pipeline that runs every stage on a cluster without manual steps. The data path from raw CSVs to the Pareto frontier works end to end as separate scripts.
 
 ---
 

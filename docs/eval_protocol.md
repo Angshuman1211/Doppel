@@ -80,9 +80,9 @@ Every run is read against two calibration anchors from `evaluation/mia_calibrati
 (ceiling, 1.000) and real rows the generator never saw (floor, 0.49 to 0.50, seed sd about 0.03). Two
 diagnostic attacks (`codes_once`, `codes_repeated`) use train code frequencies an attacker would not have,
 so they locate a leak but are not scored. See
-[`docs/membership_calibration_result.md`](docs/membership_calibration_result.md).
+[`docs/membership_calibration_result.md`](membership_calibration_result.md).
 
-**Literature basis:** [`docs/membership_inference_survey.md`](docs/membership_inference_survey.md) places these attacks
+**Literature basis:** [`docs/membership_inference_survey.md`](membership_inference_survey.md) places these attacks
 in the distance-to-closest-record family used by the SynthEHRella and Nature Communications EHR benchmarks and
 lists five gaps against the literature (no true-positive rate at low false-positive rate, no per-record report,
 no density-based attack, a stronger attacker than release-only, and wording: an AUROC near 0.5 means the attacks
@@ -97,7 +97,7 @@ privacy-relevant number, because uplift on unseen rows is ordinary statistical i
 splits. The exact-copy control (member gaps 0.57 to 0.77) is the ceiling; `independent_marginals` is the
 no-dependence arm each generator's gap is read against. No pass/fail threshold is set: real data supports
 so little inference here that a threshold would be decided by noise. See
-[`docs/attribute_targets_result.md`](docs/attribute_targets_result.md).
+[`docs/attribute_targets_result.md`](attribute_targets_result.md).
 
 **Superseded (2026-09-19):** the earlier version targeted `ethnicity` and scored holdout rows only. On the
 current split `HISPANIC/LATINO - PUERTO RICAN` is 15 of 35 holdout admissions and 0 of 94 train admissions,
@@ -130,7 +130,7 @@ AUROC over the two classifiers, higher is better) and privacy (worst-case member
 better), marks arms no other arm dominates, and bootstraps frontier membership and pairwise dominance over
 seeds. **Validation (Phase 3):** the frontier is recomputed under eight axis choices (a correlation axis, one
 classifier, one attack at a time, no utility axis), and the privacy axis is checked against the TVAE positive
-control. See [`docs/full_pareto_result.md`](docs/full_pareto_result.md). On the current five arms every arm is
+control. See [`docs/full_pareto_result.md`](full_pareto_result.md). On the current five arms every arm is
 non-dominated, so the frontier shows trade-off directions and does not rank generators. It must be rerun
 when the diffusion model or a retuned generator arrives.
 

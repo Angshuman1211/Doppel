@@ -84,7 +84,7 @@ export const DOCS = [
   ['Full evaluation result', 'docs/full_evaluation_result.md', 'Five generators, every metric, significance tests'],
   ['Positive control result', 'docs/positive_control_result.md', 'The attacks against a generator that memorizes'],
   ['Pareto frontier result', 'docs/full_pareto_result.md', 'The frontier and how sensitive it is'],
-  ['Evaluation protocol', 'eval_protocol.md', 'Formulas, thresholds and generator arms'],
+  ['Evaluation protocol', 'docs/eval_protocol.md', 'Formulas, thresholds and generator arms'],
   ['Literature survey', 'docs/membership_inference_survey.md', '18 checked sources on membership inference'],
   ['Generator sweep', 'docs/sweep_result.md', 'Track 1: memorization against fidelity'],
   ['Evaluation section of the report', 'docs/report_evaluation_section.md', 'The protocol and the results, written up for the report'],

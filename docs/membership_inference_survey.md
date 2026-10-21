@@ -1,6 +1,6 @@
 # Membership Inference Survey — what the literature says and where Doppel's attacks sit (2026-09-19)
 
-Closes the Phase 1 task "survey membership-inference attack methodology (shadow-model approach)" from the blueprint. It is a reference for the [evaluation protocol](../eval_protocol.md) and the [Phase 2 doc](B2_eval_runner.md), not a measured result.
+Closes the Phase 1 task "survey membership-inference attack methodology (shadow-model approach)" from the blueprint. It is a reference for the [evaluation protocol](eval_protocol.md) and the [Phase 2 doc](B2_eval_runner.md), not a measured result.
 
 ---
 

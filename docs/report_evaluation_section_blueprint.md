@@ -27,7 +27,7 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 - Utility: seed-to-seed sd of TSTR AUROC is **0.15–0.22** on a 35-row holdout with 6 positives, larger than the proposed threshold, so pass/fail would be decided by which seed ran. Utility is reported descriptively, over 20 seeds, never as a single number.
 
 **E4. Downstream utility protocol.**
-- Train-on-synthetic, test-on-real (TSTR) against train-on-real, test-on-real (TRTR) as the ceiling; target `hospital_expire_flag` (in-hospital mortality), chosen over `readmit_30d` because the latter has only 2 holdout positives (E's footnote: full comparison in [`eval_protocol.md`](../eval_protocol.md) §1).
+- Train-on-synthetic, test-on-real (TSTR) against train-on-real, test-on-real (TRTR) as the ceiling; target `hospital_expire_flag` (in-hospital mortality), chosen over `readmit_30d` because the latter has only 2 holdout positives (E's footnote: full comparison in [`eval_protocol.md`](eval_protocol.md) §1).
 - Two classifiers (logistic regression, random forest), AUROC as the metric because of the ~31%/69% class split.
 - TRTR ceiling, from the same runs: **0.578** (logistic regression), **0.737** (random forest).
 - Every number is mean ± sd over **20 seeds** (42–61); state plainly that a single-seed AUROC is not reported anywhere in this project.
@@ -71,7 +71,7 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 - Plan: rerun `evaluation.eval_runner` over the four new arms in Track 2's own environment, fold the output into `full_evaluation_result.md` and `full_pareto_result.md`, and update this section's E9–E10 numbers before final submission.
 
 **E12. Final metric tables and result plots for the Pareto frontier.**
-- Interactive version: the [React dashboard](../web/) (Compare, Trade-offs and Privacy sections) renders every table above as a chart with a table twin, filters, and tooltips, built from this evaluation's own JSON output.
+- Interactive version: the [React dashboard](../web) (Compare, Trade-offs and Privacy sections) renders every table above as a chart with a table twin, filters, and tooltips, built from this evaluation's own JSON output.
 - Static version, for the written report itself: the tables in E9–E10 and the raw `evaluation.summarize_results` / `evaluation.pareto` output in [`full_evaluation_result.md`](full_evaluation_result.md) and [`full_pareto_result.md`](full_pareto_result.md).
 - Outstanding for Phase 4: a static exported figure (PNG/SVG) of the fidelity–utility–privacy scatter for the Word/PDF report, since the dashboard itself can't be embedded in a static document. [TODO: export once the arm rerun in E11 lands, so the figure isn't redone twice.]
 
@@ -79,7 +79,7 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 
 ## Verified numbers
 
-Every figure above traces to one of: [`eval_protocol.md`](../eval_protocol.md) (protocol and formulas), [`full_evaluation_result.md`](full_evaluation_result.md) (5-arm benchmark), [`full_pareto_result.md`](full_pareto_result.md) (frontier), [`positive_control_result.md`](positive_control_result.md) (attack calibration and the TVAE control), [`membership_inference_survey.md`](membership_inference_survey.md) (literature grounding), [`problems_and_decisions.md`](problems_and_decisions.md) (P-003, P-007, ADR-029).
+Every figure above traces to one of: [`eval_protocol.md`](eval_protocol.md) (protocol and formulas), [`full_evaluation_result.md`](full_evaluation_result.md) (5-arm benchmark), [`full_pareto_result.md`](full_pareto_result.md) (frontier), [`positive_control_result.md`](positive_control_result.md) (attack calibration and the TVAE control), [`membership_inference_survey.md`](membership_inference_survey.md) (literature grounding), [`problems_and_decisions.md`](problems_and_decisions.md) (P-003, P-007, ADR-029).
 
 The 9-arm numbers quoted in E11 trace to [`final_comparison_result.md`](final_comparison_result.md) and are marked there, and here, as not yet reproduced by Track 2.
 

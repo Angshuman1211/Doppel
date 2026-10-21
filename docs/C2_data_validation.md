@@ -68,18 +68,18 @@ Section 6 of [`contracts/README.md`](../contracts/README.md) (2026-09-20) record
 pip install -r requirements.txt
 
 # Validate the committed dataset (no raw data needed)
-python validate_dataset.py
+python preprocessing/validate_dataset.py
 
 # Rebuild everything from raw MIMIC-III Demo CSVs placed in the repo root
-python preprocess_mimic_demo.py && python generate_manifest.py && python validate_dataset.py
+python preprocessing/preprocess_mimic_demo.py && python preprocessing/generate_manifest.py && python preprocessing/validate_dataset.py
 
 # Run against other directories, which is what the Job relies on
-RAW_DIR=/path/to/raw OUT_DIR=/path/to/out python preprocess_mimic_demo.py
-OUT_DIR=/path/to/out python generate_manifest.py
-OUT_DIR=/path/to/out python validate_dataset.py
+RAW_DIR=/path/to/raw OUT_DIR=/path/to/out python preprocessing/preprocess_mimic_demo.py
+OUT_DIR=/path/to/out python preprocessing/generate_manifest.py
+OUT_DIR=/path/to/out python preprocessing/validate_dataset.py
 
 # Verify: 129 rows, 56 columns, and the manifest regenerates identically
-python validate_dataset.py
+python preprocessing/validate_dataset.py
 ```
 
 Expected: `VALIDATION PASSED`, 129 rows, 56 columns, all checks green. The container steps (`docker build -f docker/base/Dockerfile -t doppel/base:0.1 .`, then `docker build -f docker/preprocessing/Dockerfile -t doppel/preprocessing:0.1 .`, then `kubectl apply -f k8s/jobs/preprocessing-job.yaml`) were not run.

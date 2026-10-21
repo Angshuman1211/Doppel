@@ -112,7 +112,7 @@ The `?` characters are the validator's em-dash, replaced by the script's ASCII c
 
 ```
 $ mkdir -p /tmp/val && cp output/mimic_demo_clean.csv /tmp/val/
-$ OUT_DIR=/tmp/val python generate_manifest.py
+$ OUT_DIR=/tmp/val python preprocessing/generate_manifest.py
 Wrote manifest for 129 rows, 56 columns -> /tmp/val/mimic_demo_clean.manifest.json
 $ cmp /tmp/val/mimic_demo_clean.manifest.json output/mimic_demo_clean.manifest.json && echo identical
 identical

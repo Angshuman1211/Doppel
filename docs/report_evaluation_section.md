@@ -1,6 +1,6 @@
 # Evaluation
 
-*Track 2's section of the Phase 4 report. Written from [`report_evaluation_section_blueprint.md`](report_evaluation_section_blueprint.md); every number below is sourced there and, beyond it, in [`eval_protocol.md`](../eval_protocol.md), [`full_evaluation_result.md`](full_evaluation_result.md), [`full_pareto_result.md`](full_pareto_result.md), [`positive_control_result.md`](positive_control_result.md) and [`membership_inference_survey.md`](membership_inference_survey.md). Status note at the end covers what this section does not yet include.*
+*Track 2's section of the Phase 4 report. Written from [`report_evaluation_section_blueprint.md`](report_evaluation_section_blueprint.md); every number below is sourced there and, beyond it, in [`eval_protocol.md`](eval_protocol.md), [`full_evaluation_result.md`](full_evaluation_result.md), [`full_pareto_result.md`](full_pareto_result.md), [`positive_control_result.md`](positive_control_result.md) and [`membership_inference_survey.md`](membership_inference_survey.md). Status note at the end covers what this section does not yet include.*
 
 ## Why one protocol
 

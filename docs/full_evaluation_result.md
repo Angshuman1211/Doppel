@@ -16,7 +16,7 @@ Five arms, each fitted on the 94 train rows and run over 20 seeds (42 to 61), 10
 | `ctgan` | 300 epochs | least-bad CTGAN config in Track 1's sweep |
 | `tvae` | 300 epochs | verifiably memorizes (52 to 71% near-copies in Track 1's sweep), used as the membership-attack positive control |
 
-Environment for every run: Python 3.11.9, numpy 2.4.6, pandas 2.3.3, scikit-learn 1.8.0, scipy 1.17.1, torch 2.14.0+cpu, ctgan 0.12.1, rdt 1.22.0 (Track 1's pins). Metrics are as in [`eval_protocol.md`](../eval_protocol.md): fidelity against real train, utility as TSTR on `hospital_expire_flag` against the 35-row real holdout, membership inference with 8 shadow generators and three attacks, attribute inference on `gender`, `first_careunit` and `age_bucket`.
+Environment for every run: Python 3.11.9, numpy 2.4.6, pandas 2.3.3, scikit-learn 1.8.0, scipy 1.17.1, torch 2.14.0+cpu, ctgan 0.12.1, rdt 1.22.0 (Track 1's pins). Metrics are as in [`eval_protocol.md`](eval_protocol.md): fidelity against real train, utility as TSTR on `hospital_expire_flag` against the 35-row real holdout, membership inference with 8 shadow generators and three attacks, attribute inference on `gender`, `first_careunit` and `age_bucket`.
 
 What this does not show:
 

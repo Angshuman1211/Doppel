@@ -34,7 +34,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 ### ADR-004 — `icd9_codes` serialized as JSON, not a Python list repr
 **Decision:** The `icd9_codes` column in `output/mimic_demo_clean.csv` is written with `json.dumps()` and must be read with `json.loads()`.
 **Why:** The original implementation used `.apply(list)`, which pandas writes to CSV as a Python literal string (e.g. `['99591', '99662']`). That's not valid JSON — anyone reading the column with `json.loads()` (the obvious choice) would get a parse error, and the interface contract didn't say which parser to use.
-**Impact:** Any code that consumes this column (Track 1's generators, Track 2's evaluation code) must use `json.loads()`. Documented explicitly in [`schema_and_feature_dictionary.md`](../schema_and_feature_dictionary.md) §8 so it isn't rediscovered the hard way.
+**Impact:** Any code that consumes this column (Track 1's generators, Track 2's evaluation code) must use `json.loads()`. Documented explicitly in [`schema_and_feature_dictionary.md`](schema_and_feature_dictionary.md) §8 so it isn't rediscovered the hard way.
 **Commit:** [`6280b0e`](https://github.com/Ganglet/Doppel/commit/6280b0e2d6ef7abcb055b0bf22f9dca9b095179f)
 
 ---
@@ -97,7 +97,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 ### ADR-012 — Generators are reported as mean ± sd over seeds, never from a single seed
 **Decision (Track 1, proposed to Track 2 for the evaluation protocol):** Every generator is run over multiple seeds (20 in the baseline result), and every metric is reported as mean ± sd.
 **Why:** On this holdout, TSTR AUROC for one generator varies with SD ≈ 0.2 across seeds. Seed 42 of `independent_marginals`, which has zero feature-label dependence by construction, scored 0.713 / 0.784, above the TRTR ceiling, while its 20-seed mean sits at chance (0.47 / 0.54). The holdout's 6 positives all fall in 20 of its 35 rows, which is where the noise comes from.
-**Impact:** A single-seed number can put a signal-free generator above the real-data ceiling, so single-seed numbers don't go in the report or on the Pareto frontier. The "TSTR within 0.10 of TRTR" threshold in [`eval_protocol.md`](../eval_protocol.md) is smaller than one seed's noise and needs to be read against the seed spread.
+**Impact:** A single-seed number can put a signal-free generator above the real-data ceiling, so single-seed numbers don't go in the report or on the Pareto frontier. The "TSTR within 0.10 of TRTR" threshold in [`eval_protocol.md`](eval_protocol.md) is smaller than one seed's noise and needs to be read against the seed spread.
 **Branch:** `track1-phase1-generator-interface`
 
 ---
@@ -119,7 +119,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 ---
 
 ### ADR-015 — Fidelity correlation and utility thresholds replaced by noise-floor references
-**Decision:** The absolute correlation thresholds (0.10 / 0.20) and the "TSTR within 0.10 of TRTR" utility threshold in [`eval_protocol.md`](../eval_protocol.md) are dropped. Correlation is reported against the real-vs-real floor (0.203) and the `independent_marginals` baseline (0.163). Utility is reported as mean ± sd over 20 seeds, compared by Welch test.
+**Decision:** The absolute correlation thresholds (0.10 / 0.20) and the "TSTR within 0.10 of TRTR" utility threshold in [`eval_protocol.md`](eval_protocol.md) are dropped. Correlation is reported against the real-vs-real floor (0.203) and the `independent_marginals` baseline (0.163). Utility is reported as mean ± sd over 20 seeds, compared by Welch test.
 **Why:** Real train vs holdout already scores 0.203, so no generator could pass the correlation threshold against the holdout, and the seed sd of TSTR (0.15 to 0.22) is bigger than the 0.10 utility threshold. A threshold below the noise floor decides pass/fail by the seed. This follows Track 1's caveats 2 and 3 in [`baseline_generator_result.md`](baseline_generator_result.md), which I checked and agree with.
 **Impact:** Nothing is gated on correlation or utility until a larger holdout exists. The JSD threshold (0.10 / 0.20) stays, because generators land at 0.018 against a floor of 0.099.
 **Branch:** `track2-phase2-eval-runner`
@@ -279,7 +279,7 @@ sklearn.exceptions.NotFittedError: This SimpleImputer instance is not fitted yet
 ### P-003 — Attribute-inference attack always predicted the majority class
 **Week/Date:** 2026-09-17
 **Problem:** `attribute_inference.py`'s attacker (target: `ethnicity`) scored exactly at the base rate (0.5143 accuracy, 0.0000 uplift) — it was predicting `WHITE` for every holdout row.
-**Fix:** No code fix — traced to the data: `HISPANIC/LATINO - PUERTO RICAN` is 15 of 35 holdout admissions (43%) but 0 of 94 train admissions, a direct consequence of ADR-001's patient-level random split on only 100 patients. Documented in [`eval_protocol.md`](../eval_protocol.md) and [`attribute_inference_result.md`](attribute_inference_result.md) rather than silently "fixed."
+**Fix:** No code fix — traced to the data: `HISPANIC/LATINO - PUERTO RICAN` is 15 of 35 holdout admissions (43%) but 0 of 94 train admissions, a direct consequence of ADR-001's patient-level random split on only 100 patients. Documented in [`eval_protocol.md`](eval_protocol.md) and [`attribute_inference_result.md`](attribute_inference_result.md) rather than silently "fixed."
 **Lesson:** On a 100-patient dataset, always check per-column class coverage between train and holdout before trusting a privacy-attack result — a "good" (low) attack score can mean the attacker genuinely couldn't infer the attribute, or it can mean the attacker never saw that class in training. Those are not the same finding.
 
 ---

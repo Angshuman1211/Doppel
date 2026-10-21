@@ -23,7 +23,7 @@ The point of this test is **not** "here is Doppel's privacy score" — it's "her
 | Memorizing | 0.0 | 0.8237 | Harness correctly detects strong membership leakage |
 | Noisy | 0.3 | 0.6630 | Harness correctly shows leakage drops as noise increases |
 
-Protocol threshold ([`eval_protocol.md`](../eval_protocol.md)): attack AUROC within 0.45–0.55 = good privacy, ≥ 0.65 = fail. Neither stand-in generator is a real candidate for Doppel's own privacy claim — they exist only to prove the attack code reacts correctly to known ground truth.
+Protocol threshold ([`eval_protocol.md`](eval_protocol.md)): attack AUROC within 0.45–0.55 = good privacy, ≥ 0.65 = fail. Neither stand-in generator is a real candidate for Doppel's own privacy claim — they exist only to prove the attack code reacts correctly to known ground truth.
 
 > **Note:** neither number should be quoted as "Doppel's membership-inference score." Both are calibration checks on synthetic stand-ins with artificially known behavior, not a measurement of any real generator.
 

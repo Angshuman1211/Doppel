@@ -14,7 +14,7 @@ What this is *not* evidence of: fidelity of any synthetic data generator. The me
 
 ## Results
 
-| Metric | Value | Protocol threshold ([`eval_protocol.md`](../eval_protocol.md)) |
+| Metric | Value | Protocol threshold ([`eval_protocol.md`](eval_protocol.md)) |
 |---|---|---|
 | Mean JS divergence (49 columns) | 0.1001 | ≤ 0.10 good, ≤ 0.20 acceptable |
 | Correlation preservation (mean abs. diff) | 0.2025 | ≤ 0.10 good, ≤ 0.20 acceptable |

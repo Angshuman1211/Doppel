@@ -1,6 +1,6 @@
 # Data Pipeline Result — MIMIC-III Demo preprocessed into a clean, leakage-safe dataset (2026-09-17)
 
-Raw evidence that `preprocess_mimic_demo.py` produces the dataset described in [`schema_and_feature_dictionary.md`](../schema_and_feature_dictionary.md). Reproduce with `python preprocess_mimic_demo.py` (requires raw MIMIC-III Demo CSVs in the repo root — see [`C1_data_engineering.md`](C1_data_engineering.md)).
+Raw evidence that `preprocess_mimic_demo.py` produces the dataset described in [`schema_and_feature_dictionary.md`](schema_and_feature_dictionary.md). Reproduce with `python preprocessing/preprocess_mimic_demo.py` (requires raw MIMIC-III Demo CSVs in the repo root — see [`C1_data_engineering.md`](C1_data_engineering.md)).
 
 ---
 

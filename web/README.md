@@ -2,6 +2,8 @@
 
 A React dashboard for the Doppel benchmark results. It sits beside the Streamlit app in `dashboard/`, which is unchanged.
 
+**Live: [doppel-six.vercel.app](https://doppel-six.vercel.app/)**, deployed on Vercel from this folder (root directory `web`, build `npm run build`, output `dist`). The Data section's tables are git-ignored, so the live site shows a note there; everything else is the same as a local build.
+
 The page answers one question: which synthetic-data generator is realistic, useful and private? It has seven sections: Overview, Compare, Trade-offs, Privacy, Data, Upload and Project. Upload does everything the Streamlit app does, on files you pick, inside the browser. Every chart has a "Show table" view, works with the keyboard, and follows the system light or dark theme (there is also a toggle).
 
 ## Run it

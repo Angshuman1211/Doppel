@@ -2,8 +2,11 @@
 
 **A distributed pipeline for benchmarking synthetic EHR generators on fidelity, utility, and privacy — under one dataset, one protocol, one environment.**
 
+**See the results live: [doppel-six.vercel.app](https://doppel-six.vercel.app/)** — every generator compared on all three measures, the trade-off chart, and an upload tool that checks your own synthetic file in the browser.
+
 ![Python](https://img.shields.io/badge/python-3.11-blue)
-![Status](https://img.shields.io/badge/status-phase%203%20of%204%20in%20progress-yellow)
+[![Live dashboard](https://img.shields.io/badge/live%20dashboard-doppel--six.vercel.app-1a7f37)](https://doppel-six.vercel.app/)
+![Status](https://img.shields.io/badge/status-phase%204%20of%204%20in%20progress-yellow)
 ![CI](https://img.shields.io/badge/CI-not%20configured-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT%20code%20%7C%20ODbL%20data-blue)
 ![Dataset](https://img.shields.io/badge/dataset-MIMIC--III%20Demo-blueviolet)
@@ -303,7 +306,7 @@ kubectl apply -f k8s/jobs/statistical-job.yaml
 pip install -r dashboard/requirements.txt
 streamlit run dashboard/app.py
 
-# Results dashboard in React (needs Node 20+; see web/README.md)
+# Results dashboard in React (live at https://doppel-six.vercel.app/; to run it locally, needs Node 20+, see web/README.md)
 cd web && npm install && npm run dev
 ```
 

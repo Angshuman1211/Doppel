@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useData } from '../lib/hooks'
-import StatTile from '../components/StatTile'
 import { FAMILY_COLOR, Swatch } from '../lib/marks'
 
-const PREVIEW_ROWS = 20
+const PREVIEW_ROWS = 10
 const BASE = import.meta.env.BASE_URL
 
 function cell(v) {
@@ -32,12 +31,24 @@ function download(name, columns, rows) {
   URL.revokeObjectURL(url)
 }
 
+function Bar({ v, max }) {
+  return (
+    <div className="track">
+      <i style={{ width: `${max > 0 ? Math.min(100, (v / max) * 100) : 0}%` }} />
+    </div>
+  )
+}
+
+const FIDELITY_PREVIEW = 10
+
 export default function Datasets({ arms }) {
   const index = useData(`${BASE}data/datasets/index.json`)
+  const real = useData(`${BASE}data/datasets/real.json`)
   const [arm, setArm] = useState(null)
   const [seed, setSeed] = useState(null)
   const [all, setAll] = useState(false)
-  const [find, setFind] = useState('')
+  const [allCols, setAllCols] = useState(false)
+  const [detailCol, setDetailCol] = useState(null)
 
   const list = index.data?.arms
   useEffect(() => {
@@ -57,10 +68,17 @@ export default function Datasets({ arms }) {
     setArm(id)
     setSeed(next.seeds.includes(seed) ? seed : next.seeds[0])
     setAll(false)
+    setAllCols(false)
   }
   const shown = t ? (all ? t.rows : t.rows.slice(0, PREVIEW_ROWS)) : []
-  const cols = useMemo(() => (t ? t.columns.filter((c) => c.name.toLowerCase().includes(find.trim().toLowerCase())) : []), [t, find])
-  const m = t?.manifest
+
+  const fidCols = t?.fidelity?.columns ?? []
+  const fidShown = allCols ? fidCols : fidCols.slice(0, FIDELITY_PREVIEW)
+  const maxJs = Math.max(0.001, ...fidCols.map((c) => c.js))
+  useEffect(() => {
+    if (fidCols.length && (!detailCol || !fidCols.some((c) => c.name === detailCol))) setDetailCol(fidCols[0].name)
+  }, [t, fidCols, detailCol])
+  const detail = detailCol && t && real.data ? { kind: fidCols.find((c) => c.name === detailCol)?.kind, synth: t.column_detail[detailCol], real: real.data.columns[detailCol] } : null
 
   return (
     <section id="data" aria-labelledby="h-data">
@@ -69,8 +87,7 @@ export default function Datasets({ arms }) {
           <span className="eyebrow">Data</span>
           <h2 id="h-data">Look at the synthetic records</h2>
           <p>
-            Pick a generator and a random seed to see the table it produced, with its column types and the record of how it was made. This is the same
-            view as the Streamlit dashboard, for all five generators.
+            Pick a generator and a seed to see the records it produced and where they differ from the real ones. To check a file of your own, use Upload below.
           </p>
         </div>
 
@@ -97,7 +114,7 @@ export default function Datasets({ arms }) {
               </label>
               <label className="field">
                 <span>Random seed</span>
-                <select className="select" value={seed} onChange={(e) => { setSeed(Number(e.target.value)); setAll(false) }}>
+                <select className="select" value={seed} onChange={(e) => { setSeed(Number(e.target.value)); setAll(false); setAllCols(false) }}>
                   {current.seeds.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
@@ -116,12 +133,6 @@ export default function Datasets({ arms }) {
 
             {t && (
               <div className="stack">
-                <div className="grid three">
-                  <StatTile label="Rows" value={t.n_rows} note="One synthetic hospital admission per row." />
-                  <StatTile label="Columns" value={t.n_cols} note="Same 56 columns as the real cleaned table." />
-                  <StatTile label="Missing values" value={t.missing} note="Empty cells across the whole table." />
-                </div>
-
                 <figure className="card" style={{ margin: 0 }}>
                   <div className="chart-head">
                     <div>
@@ -161,59 +172,99 @@ export default function Datasets({ arms }) {
                   </div>
                 </figure>
 
-                <div className="grid two">
+                {t.fidelity && (
                   <div className="card">
-                    <h3>Column information</h3>
-                    <p className="muted small" style={{ marginTop: 4 }}>The type of each column and how many values are missing.</p>
-                    <input className="search" type="search" placeholder="Find a column" aria-label="Find a column" value={find} onChange={(e) => setFind(e.target.value)} />
-                    <div className="sheet short" tabIndex={0} role="region" aria-label="Column information, scrollable">
-                      <table>
+                    <div className="chart-head">
+                      <div>
+                        <h3>Fidelity against the real training rows</h3>
+                        <p className="sub">
+                          Per-column distance between this file and the {real.data?.n_train ?? 94} real training rows, using Track 2&rsquo;s own fidelity code (the Compare section&rsquo;s method), so the mean below matches it. Worst column first.
+                        </p>
+                      </div>
+                      <div className="chart-tools">
+                        <span className="chip">Mean JS {t.fidelity.mean_js?.toFixed(4)}</span>
+                        <span className="chip">Corr. gap {t.fidelity.corr_diff?.toFixed(4)}</span>
+                      </div>
+                    </div>
+                    <div className="barlist">
+                      {fidShown.map((c) => (
+                        <div className="row" key={c.name}>
+                          <span className="name">
+                            {c.name}
+                            <span className="kindpill">{c.kind === 'numeric' ? 'num' : 'cat'}</span>
+                          </span>
+                          <Bar v={c.js} max={maxJs} />
+                          <span className="val">{c.js.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {fidCols.length > FIDELITY_PREVIEW && (
+                      <p style={{ marginTop: 10 }}>
+                        <button className="tbtn" onClick={() => setAllCols(!allCols)}>
+                          {allCols ? `Show worst ${FIDELITY_PREVIEW}` : `Show all ${fidCols.length} columns`}
+                        </button>
+                      </p>
+                    )}
+                    <p className="takeaway">
+                      Computed from the file above with the same code and the same training rows as the evaluation, so these numbers match that seed&rsquo;s result exactly. The Compare section shows the mean over all 20 seeds.
+                    </p>
+                  </div>
+                )}
+
+                {detail && (
+                  <div className="card">
+                    <h3>Column detail: real vs this dataset</h3>
+                    <div className="detail-pick">
+                      <label className="field">
+                        <span>Column</span>
+                        <select className="select" value={detailCol} onChange={(e) => setDetailCol(e.target.value)}>
+                          {fidCols.map((c) => (
+                            <option key={c.name} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <span className="small muted">JS divergence {fidCols.find((c) => c.name === detailCol)?.js.toFixed(4)}</span>
+                    </div>
+
+                    {detail.kind === 'numeric' ? (
+                      <table className="statcompare">
                         <thead>
                           <tr>
-                            <th scope="col">Column</th>
-                            <th scope="col">Data type</th>
-                            <th scope="col" className="n">Missing</th>
+                            <th>Statistic</th>
+                            <th className="n">Real training rows</th>
+                            <th className="n">This dataset</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {cols.map((c) => (
-                            <tr key={c.name}>
-                              <td>{c.name}</td>
-                              <td className="muted">{c.dtype}</td>
-                              <td className="n">{c.missing}</td>
+                          {Object.keys(detail.real.stats).map((k) => (
+                            <tr key={k}>
+                              <td className="muted">{k}</td>
+                              <td className="n">{detail.real.stats[k]}</td>
+                              <td className="n">{detail.synth.stats[k]}</td>
                             </tr>
                           ))}
-                          {cols.length === 0 && (
-                            <tr><td colSpan="3" className="muted">No column matches “{find}”.</td></tr>
-                          )}
                         </tbody>
                       </table>
-                    </div>
-                  </div>
-
-                  <div className="card">
-                    <h3>Generator manifest</h3>
-                    <p className="muted small" style={{ marginTop: 4 }}>The record the generator wrote about this run.</p>
-                    {m ? (
-                      <>
-                        <dl className="kv">
-                          <div><dt>Generator</dt><dd>{m.generator_name} {m.generator_version}</dd></div>
-                          <div><dt>Seed</dt><dd className="num">{m.seed}</dd></div>
-                          <div><dt>Records written</dt><dd className="num">{m.num_records}</dd></div>
-                          <div><dt>Trained on</dt><dd className="num">{m.train_rows} rows</dd></div>
-                          <div><dt>Created</dt><dd className="num">{String(m.created_utc).slice(0, 19).replace('T', ' ')} UTC</dd></div>
-                          <div><dt>Code version</dt><dd className="num">{m.git_commit}</dd></div>
-                        </dl>
-                        <details className="raw">
-                          <summary>Show the full manifest</summary>
-                          <pre>{JSON.stringify(m, null, 2)}</pre>
-                        </details>
-                      </>
                     ) : (
-                      <p className="muted small" style={{ marginTop: 10 }}>No manifest file was found for this dataset.</p>
+                      <>
+                        <div className="share-head"><span /><span>Real training rows</span><span>This dataset</span></div>
+                        {Object.keys({ ...detail.real.shares, ...detail.synth.shares }).map((k) => (
+                          <div className="sharebar" key={k}>
+                            <span className="lab">{k}</span>
+                            <span className="pair">
+                              <span className="track real"><i style={{ width: `${(detail.real.shares[k] ?? 0) * 100}%` }} /></span>
+                              <span className="v">{((detail.real.shares[k] ?? 0) * 100).toFixed(0)}%</span>
+                            </span>
+                            <span className="pair">
+                              <span className="track synth"><i style={{ width: `${(detail.synth.shares[k] ?? 0) * 100}%` }} /></span>
+                              <span className="v">{((detail.synth.shares[k] ?? 0) * 100).toFixed(0)}%</span>
+                            </span>
+                          </div>
+                        ))}
+                      </>
                     )}
                   </div>
-                </div>
+                )}
               </div>
             )}
           </>

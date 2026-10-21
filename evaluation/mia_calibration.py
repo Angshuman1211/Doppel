@@ -39,7 +39,9 @@ from generators import schema as S
 SEEDS = list(range(42, 62))
 OUT_PATH = Path("results/calibration/mia_calibration.json")
 ARM_NAMES = ["exact_copy", "disjoint_real", "independent_marginals", "gaussian_copula",
-             "gaussian_copula_shrink025", "ctgan", "tvae"]
+             "gaussian_copula_shrink025", "ctgan", "tvae",
+             # the Phase 3 arms (ADR-029)
+             "gaussian_copula_shrink010", "ctgan_small", "tabular_diffusion", "tabular_diffusion_reg"]
 RECORD_ATTACK = "icd9_codes"
 
 

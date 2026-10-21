@@ -3,7 +3,7 @@ Doppel — Track 3 (Data Engineering) preprocessing pipeline.
 
 Ingests raw MIMIC-III Clinical Database Demo CSVs and produces a single
 clean, admission-level tabular dataset for Stage 2 (generation) and
-Stage 3 (evaluation), per schema_and_feature_dictionary.md.
+Stage 3 (evaluation), per docs/schema_and_feature_dictionary.md.
 
 RAW_DIR and OUT_DIR can be overridden via environment variables so this
 script runs identically locally and inside a Kubernetes Job.

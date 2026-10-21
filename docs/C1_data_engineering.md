@@ -62,7 +62,7 @@ One row = one hospital admission (`hadm_id`). This is the grain Track 1 generate
 pip install pandas numpy
 
 # 3. Run preprocessing
-python preprocess_mimic_demo.py
+python preprocessing/preprocess_mimic_demo.py
 
 # 4. Verify output
 python -c "
@@ -96,6 +96,6 @@ Expected verification output: `shape: (129, 56)`, `split counts: {'train': 94, '
 | Cleaned dataset | `output/mimic_demo_clean.csv` — 129 rows × 56 columns |
 | ICD-9 description lookup | `output/icd9_lookup.csv` — 14,567 code→description rows |
 | Lab item lookup | `output/lab_item_lookup.csv` — 20 rows |
-| Schema documentation | [`schema_and_feature_dictionary.md`](../schema_and_feature_dictionary.md) |
+| Schema documentation | [`schema_and_feature_dictionary.md`](schema_and_feature_dictionary.md) |
 | Train / holdout split | 94 / 35 admissions, seed 42 |
 | `icd9_codes` serialization | JSON array string — parse with `json.loads()`, not `ast.literal_eval()` (ADR-004) |

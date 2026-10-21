@@ -1,16 +1,23 @@
 import StatTile from '../components/StatTile'
 import { f3, pval } from '../lib/format'
+import { COPULAS, NEURAL, NOT_LEAKY, pct0, range } from '../lib/groups'
 
 export default function Overview({ data }) {
-  const { results: r, refs, meta, pareto, tests, coverage } = data
-  const others = ['independent_marginals', 'gaussian_copula', 'gaussian_copula_shrink025', 'ctgan']
-  const worst = others.map((a) => r[a].privacy.worst.mean)
-  const lo = Math.min(...worst)
-  const hi = Math.max(...worst)
+  const { results: r, refs, meta, pareto, tests, coverage, mortality, arms } = data
+  const label = (id) => arms.find((a) => a.id === id)?.label ?? id
+  const worst = (a) => r[a].privacy.worst.mean
+  const [lo, hi] = range(NOT_LEAKY, worst)
   const onFrontier = Object.values(pareto.frontier).filter(Boolean).length
   const total = Object.keys(pareto.frontier).length
+  const offFrontier = Object.keys(pareto.frontier).filter((a) => !pareto.frontier[a]).map(label)
   const copulaJsd = r.gaussian_copula.fidelity.jsd.mean
-  const neuralRatio = ((r.ctgan.fidelity.jsd.mean + r.tvae.fidelity.jsd.mean) / 2 / copulaJsd).toFixed(0)
+  const [nLo, nHi] = range(NEURAL, (a) => r[a].fidelity.jsd.mean)
+  const diff = r.tabular_diffusion
+  const maxP = Math.max(...Object.keys(r).filter((a) => a !== 'tabular_diffusion').map((a) => tests[`tabular_diffusion_vs_${a}_worst_p`]))
+  const best = r.gaussian_copula_shrink010
+  const [cLo] = range(COPULAS, (a) => r[a].fidelity.corr_diff.mean)
+  const realDeaths = data.dataset.train_mortality_rate
+  const topUtil = ['tabular_diffusion', 'tabular_diffusion_reg'].reduce((a, b) => (r[a].utility.tstr_rf.mean > r[b].utility.tstr_rf.mean ? a : b))
 
   return (
     <section id="overview" aria-labelledby="h-overview">
@@ -30,31 +37,24 @@ export default function Overview({ data }) {
             </div>
           </div>
           <div className="card hero-figure">
-            <div className="value num">{f3(r.tvae.privacy.worst.mean)}</div>
-            <div className="label">Membership-attack score for TVAE</div>
+            <div className="value num">{f3(worst('tabular_diffusion'))}</div>
+            <div className="label">Membership-attack score for the diffusion model</div>
             <p className="muted">
-              TVAE is the generator that copies its training data. The attack scores 0.5 when it is guessing and 1.0 when it always wins. The
-              other four generators score {f3(lo)} to {f3(hi)}.
+              This diffusion model copies most of its training rows. The attack scores 0.5 when it is guessing and 1.0 when it always wins.
+              The six generators that do not leak score {f3(lo)} to {f3(hi)}.
             </p>
           </div>
         </div>
 
-        <div className="notice" role="note">
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-            <circle cx="9" cy="9" r="8" fill="none" stroke="var(--accent)" strokeWidth="1.6" />
-            <path d="M9 8v5M9 5.2v.1" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          <span>
-            <b>Work in progress.</b> Five generator settings are evaluated on {data.dataset.train} training rows. The diffusion model, the third
-            planned generator family, is not built yet, so these results are a first comparison and not the final one.
-          </span>
-        </div>
-
         <div className="grid four" style={{ marginTop: 26 }}>
-          <StatTile label="Evaluation runs" value={meta.runs} note={`5 generators × ${r.tvae.n_seeds} random seeds each`} />
-          <StatTile label="Best prediction score" value={f3(r.tvae.utility.tstr_rf.mean)} note={`TVAE. Models trained on real data reach ${f3(refs.trtr_rf)}, so this comes from copying.`} />
-          <StatTile label="Closest to the real data" value={f3(copulaJsd)} note={`Copulas and the floor tie. CTGAN and TVAE are about ${neuralRatio}× further away.`} />
-          <StatTile label="On the trade-off frontier" value={`${onFrontier} of ${total}`} note="So the data cannot rank the generators." />
+          <StatTile label="Evaluation runs" value={meta.runs} note={`${arms.length} generator settings × ${r.tvae.n_seeds} random seeds each`} />
+          <StatTile label="Closest to the real data" value={f3(copulaJsd)} note={`The copulas and the floor tie. The neural generators are ${(nLo / copulaJsd).toFixed(1)} to ${Math.round(nHi / copulaJsd)}× further away.`} />
+          <StatTile
+            label="Highest prediction score"
+            value={f3(r[topUtil].utility.tstr_rf.mean)}
+            note={`${label(topUtil)}, above models trained on real data (${f3(refs.trtr_rf)}), because it generates ${pct0(mortality[topUtil].mean)} deaths against a real ${pct0(realDeaths)}.`}
+          />
+          <StatTile label="On the trade-off frontier" value={`${onFrontier} of ${total}`} note={`Only ${offFrontier.join(' and ')} is off it, so the data cannot rank the rest.`} />
         </div>
 
         <div className="section-head" style={{ marginTop: 56 }}>
@@ -64,42 +64,42 @@ export default function Overview({ data }) {
         <div className="grid three">
           <article className="card finding">
             <span className="tag">Privacy</span>
-            <h3>TVAE copies its training data, and the attacks catch it</h3>
+            <h3>The generators that copy leak most, and the attacks catch them</h3>
             <p>
-              A generator that memorizes should look leaky, and it does. A weaker attack on four columns misses it entirely, which is why the
-              privacy score uses the worst of three attacks.
+              TVAE and the 3000-step diffusion model copy their training rows by Track 1&rsquo;s own check, and the attacks rank both above every generator that
+              does not. The regularized diffusion model passed that check and still leaks second most.
             </p>
             <div className="evidence">
-              Score <b className="num">{f3(r.tvae.privacy.worst.mean)}</b> against <b className="num">{f3(lo)}–{f3(hi)}</b> for the others (
-              {pval(tests.tvae_vs_independent_marginals_worst_p)}). Its output sits nearest to only{' '}
-              <b>{coverage.tvae.distinct.mean.toFixed(0)} of 94</b> training rows.
+              Diffusion <b className="num">{f3(worst('tabular_diffusion'))}</b>, regularized <b className="num">{f3(worst('tabular_diffusion_reg'))}</b>, TVAE{' '}
+              <b className="num">{f3(worst('tvae'))}</b>, against <b className="num">{f3(lo)}–{f3(hi)}</b> for the rest ({pval(maxP)} for the diffusion model against each).
+              At 1% false alarms the attack finds <b>{pct0(diff.privacy.tpr1_gower.mean)}</b> of its training patients.
             </div>
           </article>
           <article className="card finding">
             <span className="tag">Fidelity</span>
-            <h3>CTGAN learned almost nothing at this size</h3>
+            <h3>No neural generator works at this size</h3>
             <p>
-              With 94 training rows, the GAN gets each column's shape wrong and learns no relationships between columns. It performs about like the
-              floor that ignores relationships altogether.
+              With 94 training rows, each neural family fails one of two ways. CTGAN learns no relationships between columns, even after tuning. TVAE and the
+              diffusion model reproduce their training patients instead of learning from them.
             </p>
             <div className="evidence">
-              Distance from real data <b className="num">{f3(r.ctgan.fidelity.jsd.mean)}</b> against <b className="num">{f3(copulaJsd)}</b> for the copula.
-              Correlation error <b className="num">{f3(r.ctgan.fidelity.corr_diff.mean)}</b> against the floor's{' '}
-              <b className="num">{f3(r.independent_marginals.fidelity.corr_diff.mean)}</b>.
+              Distance from real data <b className="num">{f3(copulaJsd)}</b> for the copula against <b className="num">{f3(nLo)}–{f3(nHi)}</b> for the neural generators.
+              Tuned CTGAN&rsquo;s correlation error <b className="num">{f3(r.ctgan_small.fidelity.corr_diff.mean)}</b> is worse than the floor&rsquo;s{' '}
+              <b className="num">{f3(r.independent_marginals.fidelity.corr_diff.mean)}</b>. TVAE&rsquo;s output sits nearest to only{' '}
+              <b>{coverage.tvae.distinct.mean.toFixed(0)} of 94</b> training rows.
             </div>
           </article>
           <article className="card finding">
             <span className="tag">Trade-off</span>
-            <h3>A simple statistical model is the best trade-off here</h3>
+            <h3>The tuned copula is the best trade-off here</h3>
             <p>
-              The copula with less shrinkage predicts about as well as TVAE, stays close to the real data, and leaks less. It does not need
-              to copy anything to get there.
+              The copula with the least shrinkage keeps the most of the real correlations, predicts about as well as TVAE, and leaks less than every generator that
+              copies. It needs no copying to get there.
             </p>
             <div className="evidence">
-              Prediction score <b className="num">{f3(r.gaussian_copula_shrink025.utility.tstr_mean.mean)}</b> vs TVAE{' '}
-              <b className="num">{f3(r.tvae.utility.tstr_mean.mean)}</b> ({pval(tests.tvae_vs_shrink025_utility_p)}). Leakage{' '}
-              <b className="num">{f3(r.gaussian_copula_shrink025.privacy.worst.mean)}</b> vs{' '}
-              <b className="num">{f3(r.tvae.privacy.worst.mean)}</b>.
+              Correlation error <b className="num">{f3(cLo)}</b>, the best of any generator. Prediction score <b className="num">{f3(best.utility.tstr_mean.mean)}</b> vs TVAE{' '}
+              <b className="num">{f3(r.tvae.utility.tstr_mean.mean)}</b> ({pval(tests.shrink010_vs_tvae_utility_p)}). Leakage{' '}
+              <b className="num">{f3(best.privacy.worst.mean)}</b> vs <b className="num">{f3(worst('tvae'))}</b> and up.
             </div>
           </article>
         </div>
@@ -107,3 +107,4 @@ export default function Overview({ data }) {
     </section>
   )
 }
+

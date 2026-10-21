@@ -1,5 +1,7 @@
 # Full Evaluation Result — TVAE reaches the real-data utility ceiling by copying, CTGAN learns nothing, and no arm dominates (2026-09-24)
 
+> **Superseded as the headline (2026-10-21)** by the nine-arm evaluation in [`final_evaluation_result.md`](final_evaluation_result.md), which adds Track 1's four Phase 3 arms, including diffusion. The five-arm numbers below are unchanged and still stand: seed 42 of three of these arms was rerun on 2026-10-21 and reproduced exactly.
+
 Raw evidence for the first evaluation of all of Track 1's generator families (statistical, GAN-family, VAE) through the full Track 2 harness. Reproduce with `pip install -r generators/requirements-neural.txt`, then `python -m evaluation.eval_runner --generator <arm> --seed <n>` for seeds 42 to 61 and every arm in [`evaluation/arms.py`](../evaluation/arms.py), then `python -m evaluation.summarize_results`. This supersedes the two-arm numbers in [`baseline_evaluation_result.md`](baseline_evaluation_result.md).
 
 ---
@@ -16,7 +18,7 @@ Five arms, each fitted on the 94 train rows and run over 20 seeds (42 to 61), 10
 | `ctgan` | 300 epochs | least-bad CTGAN config in Track 1's sweep |
 | `tvae` | 300 epochs | verifiably memorizes (52 to 71% near-copies in Track 1's sweep), used as the membership-attack positive control |
 
-Environment for every run: Python 3.11.9, numpy 2.4.6, pandas 2.3.3, scikit-learn 1.8.0, scipy 1.17.1, torch 2.14.0+cpu, ctgan 0.12.1, rdt 1.22.0 (Track 1's pins). Metrics are as in [`eval_protocol.md`](../eval_protocol.md): fidelity against real train, utility as TSTR on `hospital_expire_flag` against the 35-row real holdout, membership inference with 8 shadow generators and three attacks, attribute inference on `gender`, `first_careunit` and `age_bucket`.
+Environment for every run: Python 3.11.9, numpy 2.4.6, pandas 2.3.3, scikit-learn 1.8.0, scipy 1.17.1, torch 2.14.0+cpu, ctgan 0.12.1, rdt 1.22.0 (Track 1's pins). Metrics are as in [`eval_protocol.md`](eval_protocol.md): fidelity against real train, utility as TSTR on `hospital_expire_flag` against the 35-row real holdout, membership inference with 8 shadow generators and three attacks, attribute inference on `gender`, `first_careunit` and `age_bucket`.
 
 What this does not show:
 

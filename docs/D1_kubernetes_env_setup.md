@@ -58,7 +58,7 @@ Two later sections of the contracts README record decisions: §5 (Track 1's revi
 
 ```bash
 # Verify the contracts against real output (verified 2026-09-24)
-python validate_dataset.py                                             # dataset manifest vs dataset.schema.json
+python preprocessing/validate_dataset.py                                             # dataset manifest vs dataset.schema.json
 python -m generators.generate --generator gaussian_copula --seed 42    # writes a manifest checked against generator_output.schema.json
 python -m evaluation.eval_runner --generator gaussian_copula --seed 42 # validates the result against evaluation_result.schema.json before writing
 

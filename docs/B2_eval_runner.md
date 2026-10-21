@@ -45,7 +45,7 @@ Each generator is run over 20 seeds (42 to 61) and reported as mean ± sd (ADR-0
 
 ### 3. Metric fixes and revised thresholds
 
-Track 1 found that `evaluation/fidelity_metrics.py` scored binary columns as JSD 0 whatever the positive rate, because 10-quantile binning collapses two values into one bin (P-007). Binary columns now use the categorical path and the report covers 52 columns. Two thresholds were dropped because they sit below the noise floor: absolute correlation cutoffs (real train vs holdout already scores 0.203) and "TSTR within 0.10 of TRTR" (seed sd is 0.15 to 0.22). See ADR-015 and [`eval_protocol.md`](../eval_protocol.md).
+Track 1 found that `evaluation/fidelity_metrics.py` scored binary columns as JSD 0 whatever the positive rate, because 10-quantile binning collapses two values into one bin (P-007). Binary columns now use the categorical path and the report covers 52 columns. Two thresholds were dropped because they sit below the noise floor: absolute correlation cutoffs (real train vs holdout already scores 0.203) and "TSTR within 0.10 of TRTR" (seed sd is 0.15 to 0.22). See ADR-015 and [`eval_protocol.md`](eval_protocol.md).
 
 ### 4. Membership inference made interpretable
 

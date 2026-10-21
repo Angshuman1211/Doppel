@@ -12,9 +12,9 @@
 
 ## What this is
 
-Doppel trains families of synthetic Electronic Health Record generators on the MIMIC-III Clinical Database Demo — a statistical baseline (Gaussian copula), a GAN-family and a VAE model (CTGAN, TVAE), and a planned tabular diffusion model — and scores every one on the same fidelity, downstream-utility and privacy-attack protocol, so results are comparable instead of being separate numbers from separate papers. Four generator configurations plus a no-dependence floor are built and have been evaluated over 20 seeds each; the diffusion model has not been built. **The privacy attacks are validated against a real generator that memorizes: TVAE scores a worst-case membership AUROC of 0.680 against 0.637 to 0.651 for the other arms (p < 0.0001 for each pair), while a 4-column attack rates it the safest generator of all (0.503).**
+Doppel trains families of synthetic Electronic Health Record generators on the MIMIC-III Clinical Database Demo — a statistical baseline (Gaussian copula), a GAN-family and a VAE model (CTGAN, TVAE), and a tabular diffusion model — and scores every one on the same fidelity, downstream-utility and privacy-attack protocol, so results are comparable instead of being separate numbers from separate papers. Nine configurations across the three families, including a no-dependence floor, have been evaluated over 20 seeds each (180 runs; [`docs/final_evaluation_result.md`](docs/final_evaluation_result.md)). **The privacy attacks are validated against a real generator that memorizes: TVAE scores a worst-case membership AUROC of 0.680 against 0.637 to 0.651 for the other arms (p < 0.0001 for each pair), while a 4-column attack rates it the safest generator of all (0.503).**
 
-> **Status:** Phase 1 of 4 (Weeks 1–2 of a 14-week plan). Data engineering and evaluation tracks are done for this phase. All three generator families now exist (statistical, GAN/VAE, diffusion) and have been tuned. Results 2–4 were produced by running the evaluation code against **real data used as a synthetic-data stand-in**. Results 5–7 are real synthetic data.
+> **Status (2026-10-21):** Week 5 of a 14-week plan that started 2026-09-17, and ahead of it: most Phase 3 deliverables are in and Phase 4 report writing has started. All three generator families exist and are tuned (Track 1). Track 2 has evaluated all nine arms, including the four added in Phase 3 (two diffusion configs, a tuned copula, a tuned CTGAN), and written the report's Evaluation section. Track 4 has generation and evaluation Jobs on shared storage, launched one at a time rather than as an orchestrated pipeline.
 
 ---
 
@@ -98,9 +98,9 @@ Hospitals want to share patient data for research without violating privacy, and
 | Output rows / columns | 129 hospital admissions / 56 columns |
 | Train / holdout split | 94 / 35 admissions, split by `subject_id` (patient-level, not admission-level) |
 | Random seed | 42 |
-| `python validate_dataset.py` | `VALIDATION PASSED`, 129 rows, 56 columns, all checks green (run 2026-09-24) |
+| `python preprocessing/validate_dataset.py` | `VALIDATION PASSED`, 129 rows, 56 columns, all checks green (run 2026-09-24) |
 
-> **Honest scope:** this is real data, cleaned. The patient-level split is leakage-safe but, on 100 patients, leaves `HISPANIC/LATINO - PUERTO RICAN` at 15 of 35 holdout rows and 0 of 94 train rows, which invalidated the original ethnicity attribute attack. The validator catches 7 of 7 faults it was designed for but cannot see this kind of gap (P-018). See [`schema_and_feature_dictionary.md`](schema_and_feature_dictionary.md) for the known-issues list and [`docs/dataset_validation_result.md`](docs/dataset_validation_result.md) for the evidence.
+> **Honest scope:** this is real data, cleaned. The patient-level split is leakage-safe but, on 100 patients, leaves `HISPANIC/LATINO - PUERTO RICAN` at 15 of 35 holdout rows and 0 of 94 train rows, which invalidated the original ethnicity attribute attack. The validator catches 7 of 7 faults it was designed for but cannot see this kind of gap (P-018). See [`schema_and_feature_dictionary.md`](docs/schema_and_feature_dictionary.md) for the known-issues list and [`docs/dataset_validation_result.md`](docs/dataset_validation_result.md) for the evidence.
 
 ### 2. Generators and in-train model selection (Track 1)
 
@@ -215,16 +215,19 @@ The third family now exists, and 390 fits across two grids tuned every arm. Best
 │   ├── validate.py                   #   Stage 2 output-contract checker
 │   ├── generate.py                   #   Stage 2 entry point (fit, sample, decode, validate, write)
 │   └── requirements-neural.txt       #   root requirements + torch/ctgan/rdt for the neural generators
-├── preprocess_mimic_demo.py          # Track 3: raw MIMIC-III Demo CSVs -> cleaned admission-level dataset
-├── generate_manifest.py              # Track 3: writes the dataset manifest checked against the schema
-├── validate_dataset.py               # Track 3: dataset validation checks
-├── schema_and_feature_dictionary.md  # Track 3: data schema, feature dictionary, known data-quality issues
+├── preprocessing/                    # Track 3: raw data to the cleaned dataset (run from the repo root)
+│   ├── preprocess_mimic_demo.py      #   raw MIMIC-III Demo CSVs -> cleaned admission-level dataset
+│   ├── generate_manifest.py          #   writes the dataset manifest checked against the schema
+│   └── validate_dataset.py           #   dataset validation checks
 ├── contracts/                        # Track 4: contract README and three JSON schemas between stages
 ├── docker/                           # Track 4: base, preprocessing, statistical, ctgan images and a smoke test
 ├── k8s/                              # Track 4: namespace and Jobs (preprocessing, statistical, ctgan, smoke test)
 ├── dashboard/                        # Track 4: Streamlit scaffold listing generated datasets and manifests
 ├── web/                              # Track 2: React results dashboard (Vite), reads web/public/data/dashboard.json
-├── docs/                             # component docs (A1, A2, B1-B3, C1, C2, D1, D2), result docs, survey, problems_and_decisions.md
+├── docs/                             # component docs (A1-A4, B1-B4, C1, C2, D1, D2), result docs, survey, problems_and_decisions.md
+│   ├── eval_protocol.md              #   Track 2: metric formulas, thresholds, arms and positive control
+│   ├── schema_and_feature_dictionary.md  # Track 3: data schema, feature dictionary, known data-quality issues
+│   └── blueprint/                    #   original project spec: Doppel_Blueprint.pdf and .docx
 ├── output/
 │   ├── mimic_demo_clean.csv          # cleaned dataset (129 admissions x 56 cols)
 │   ├── mimic_demo_clean.manifest.json  # dataset manifest
@@ -233,10 +236,7 @@ The third family now exists, and 390 fits across two grids tuned every arm. Best
 │   ├── synthetic/                    # generator output, eval copies and shadow-fit cache (regenerated, not committed)
 │   └── sweeps/                       # sweep tables (regenerated, not committed)
 ├── results/                          # evaluation JSON per arm and seed (regenerated, not committed)
-├── eval_protocol.md                  # Track 2: metric formulas, thresholds, arms and positive control
 ├── requirements.txt                  # pinned dependency versions (the Docker images install this)
-├── Doppel_Blueprint.pdf              # original project spec: architecture, phases, tracks
-│   (and Doppel_Blueprint.docx)
 ├── LICENSE                           # MIT, for the code
 ├── DATA_LICENSE.md                   # ODbL 1.0, for MIMIC-III-derived data
 └── .gitignore                        # excludes raw MIMIC-III source tables, venvs, generated data and results
@@ -255,9 +255,10 @@ git clone https://github.com/Ganglet/Doppel.git
 cd Doppel
 pip install -r requirements.txt
 
-python validate_dataset.py                                             # Track 3: dataset checks
+python preprocessing/validate_dataset.py                                             # Track 3: dataset checks
 python -m generators.generate --generator gaussian_copula --seed 42    # Track 1: fit, sample, validate, write
 python -m generators.validate output/synthetic/gaussian_copula_seed42.csv
+python -m evaluation.eval_runner --generator gaussian_copula --seed 42 # Track 2: writes results/gaussian_copula_seed42.json
 
 pip install -r dashboard/requirements.txt
 streamlit run dashboard/app.py   # then upload a synthetic CSV, and the real one to score against it
@@ -273,7 +274,7 @@ streamlit run dashboard/app.py   # then upload a synthetic CSV, and the real one
 # https://physionet.org/content/mimiciii-demo/1.4/).
 # Place PATIENTS.csv, ADMISSIONS.csv, ICUSTAYS.csv, DIAGNOSES_ICD.csv,
 # D_ICD_DIAGNOSES.csv, LABEVENTS.csv, D_LABITEMS.csv in the repo root, then:
-python preprocess_mimic_demo.py && python generate_manifest.py && python validate_dataset.py
+python preprocessing/preprocess_mimic_demo.py && python preprocessing/generate_manifest.py && python preprocessing/validate_dataset.py
 ```
 
 ```bash
@@ -322,17 +323,17 @@ No cloud resources are in use. The pipeline is designed to run on a local Kubern
 
 | Phase (Weeks) | Track 1 — Generative Modeling | Track 2 — Evaluation | Track 3 — Data Engineering | Track 4 — Systems & Delivery |
 |---|---|---|---|---|
-| Phase 1 (1–2) | ✅ Generator contract, shared codec, validator, statistical baseline | ✅ Protocol defined, task selected | ✅ Cleaned dataset, schema, `.gitignore` |  ✅ Set up the local Docker and Minikube/Kubernetes environment, Created and tested the base Docker image, Established integration contracts, including shared schemas and file paths, Coordinated generator input/output requirements with other tracks.|
-| Phase 2 (3–7) | ✅ CTGAN/TVAE, in-train model selection (DCR), initial sweep, contract reconciled with Track 4 · diffusion in progress | ✅ Fidelity/utility/privacy code (self-tested on stand-in data) | — | ✅ Statistical & CTGAN containerization, Kubernetes Jobs, Streamlit dashboard scaffold, local and Minikube testing. |
-| Phase 3 (8–11) | ✅ Diffusion generator built; all four arms tuned (390 fits); final-comparison configs chosen | In progress: full evaluation of Track 1's arms | ✅ Manifest dtype fix (P-019) | ✅ Docker images, generation + evaluation Jobs, shared persistent storage, dashboard with Pareto analysis; validated on Minikube with Gaussian copula and CTGAN at seed 42. Jobs are launched individually; Kubernetes preprocessing and automated stage orchestration are still open |
-| Phase 4 (12–14) | Not started | Not started | Not started | Not started |
+| Phase 1 (1–2) | ✅ Generator contract, shared codec, validator, statistical baseline | ✅ Protocol with formulas, utility task, membership-inference literature survey | ✅ Cleaned dataset, schema, `.gitignore` |  ✅ Set up the local Docker and Minikube/Kubernetes environment, Created and tested the base Docker image, Established integration contracts, including shared schemas and file paths, Coordinated generator input/output requirements with other tracks.|
+| Phase 2 (3–7) | ✅ CTGAN/TVAE, in-train model selection (DCR), initial sweep, contract reconciled with Track 4 · diffusion in progress | ✅ Fidelity, utility and privacy code, evaluation runner and contract JSON | — | ✅ Statistical & CTGAN containerization, Kubernetes Jobs, Streamlit dashboard scaffold, local and Minikube testing. |
+| Phase 3 (8–11) | ✅ Diffusion generator built; all four arms tuned (390 fits); final-comparison configs chosen | ✅ Five arms × 20 seeds, calibrated attacks with a positive control, validated Pareto frontier, React results dashboard · rerun over the four Phase 3 arms in progress | ✅ Manifest dtype fix (P-019) | ✅ Docker images, generation + evaluation Jobs, shared persistent storage, dashboard with Pareto analysis; validated on Minikube with Gaussian copula and CTGAN at seed 42. Jobs are launched individually; Kubernetes preprocessing and automated stage orchestration are still open |
+| Phase 4 (12–14) | In progress: Methodology and Results report blueprint, generator architecture doc (A4) | ✅ Nine-arm evaluation, Evaluation section of the report, final tables and Pareto figure | Not started | Not started |
 
 ---
 
 ## Authors
 
 - **Angshuman** — Track 1, Generative Modeling Core (statistical baseline, CTGAN/TVAE, diffusion model; cross-track architecture decisions)
-- **Rayyan** (GitHub: Rayyan-mohammed) — Track 2, Privacy & Utility Evaluation (fidelity, utility, and privacy-attack modules; evaluation protocol)
+- **Rayyan** (GitHub: Rayyan-mohammed) — Track 2, Privacy & Utility Evaluation (evaluation protocol, fidelity, utility and privacy-attack modules, evaluation runner, attack calibration, Pareto frontier, literature survey, React results dashboard, Evaluation section of the report)
 - **Anoushka** (GitHub: AnoushkaSarkar) — Track 3, Data Engineering (MIMIC-III preprocessing, schema, feature dictionary)
 - **Anshuman CE** — Track 4, Systems Integration & Delivery (containerization, Kubernetes orchestration, dashboard, final delivery)
 
@@ -340,9 +341,9 @@ No cloud resources are in use. The pipeline is designed to run on a local Kubern
 
 ## Documentation index
 
-- [`Doppel_Blueprint.pdf`](Doppel_Blueprint.pdf) — original project spec: architecture, 4 phases, track ownership, success criteria
-- [`docs/problems_and_decisions.md`](docs/problems_and_decisions.md) — running log of architecture decisions (ADR-001 to 027) and problems (P-001 to 018)
-- [`schema_and_feature_dictionary.md`](schema_and_feature_dictionary.md) — full data schema, feature dictionary, known data-quality issues
+- [`Doppel_Blueprint.pdf`](docs/blueprint/Doppel_Blueprint.pdf) — original project spec: architecture, 4 phases, track ownership, success criteria
+- [`docs/problems_and_decisions.md`](docs/problems_and_decisions.md) — running log of architecture decisions (ADR-001 to 030) and problems (P-001 to 021)
+- [`schema_and_feature_dictionary.md`](docs/schema_and_feature_dictionary.md) — full data schema, feature dictionary, known data-quality issues
 - [`docs/C1_data_engineering.md`](docs/C1_data_engineering.md), [`docs/C2_data_validation.md`](docs/C2_data_validation.md) — Track 3 component docs (Phases 1 and 2)
 - [`docs/data_pipeline_result.md`](docs/data_pipeline_result.md), [`docs/dataset_validation_result.md`](docs/dataset_validation_result.md) — cleaned-dataset evidence, and validator fault-injection results
 - [`docs/D1_kubernetes_env_setup.md`](docs/D1_kubernetes_env_setup.md), [`docs/D2_system_integration.md`](docs/D2_system_integration.md) — Track 4 component docs (Phases 1 and 2), with static checks
@@ -352,4 +353,14 @@ No cloud resources are in use. The pipeline is designed to run on a local Kubern
 - [`docs/sweep_result.md`](docs/sweep_result.md) — initial sweep: memorization vs fidelity for every generator config
 - [`docs/A3_diffusion_and_tuning.md`](docs/A3_diffusion_and_tuning.md) — Track 1 Phase 3: the diffusion generator, final tuning, cross-track fixes and findings
 - [`docs/phase3_tuning_result.md`](docs/phase3_tuning_result.md) — 390 fits: tuning every arm, and why no neural config works at n = 94
+- [`docs/final_comparison_result.md`](docs/final_comparison_result.md) — Track 1's run of all nine arms through Track 2's harness (not yet reproduced by Track 2)
+- [`docs/A4_generator_architecture.md`](docs/A4_generator_architecture.md), [`docs/report_methodology_results_blueprint.md`](docs/report_methodology_results_blueprint.md) — Track 1 Phase 4: generator architecture, and the Methodology and Results sections of the report
+- [`eval_protocol.md`](docs/eval_protocol.md) — Track 2 metric formulas, thresholds, arms and positive control
+- [`docs/B1_evaluation_pipeline.md`](docs/B1_evaluation_pipeline.md), [`docs/B2_eval_runner.md`](docs/B2_eval_runner.md), [`docs/B3_full_evaluation.md`](docs/B3_full_evaluation.md), [`docs/B3b_web_dashboard.md`](docs/B3b_web_dashboard.md), [`docs/B4_evaluation_report.md`](docs/B4_evaluation_report.md) — Track 2 component docs, Phases 1 to 4
+- [`docs/final_evaluation_result.md`](docs/final_evaluation_result.md) — Track 2's nine-arm evaluation, the final comparison
+- [`docs/full_evaluation_result.md`](docs/full_evaluation_result.md), [`docs/positive_control_result.md`](docs/positive_control_result.md), [`docs/full_pareto_result.md`](docs/full_pareto_result.md) — Track 2 Phase 3 results
+- [`docs/membership_inference_survey.md`](docs/membership_inference_survey.md) — literature survey, 18 checked sources
+- [`docs/report_evaluation_section.md`](docs/report_evaluation_section.md) and its [blueprint](docs/report_evaluation_section_blueprint.md) — Track 2 Phase 4: the Evaluation section of the report
+- [`contracts/README.md`](contracts/README.md) — contracts between stages, with the path decision
+- [`docs/track4_phase3_runbook.md`](docs/track4_phase3_runbook.md) — Track 4 Phase 3: running the Jobs and dashboard on Minikube
 - [`LICENSE`](LICENSE) / [`DATA_LICENSE.md`](DATA_LICENSE.md) — MIT for code, ODbL 1.0 for MIMIC-III-derived data

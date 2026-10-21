@@ -17,7 +17,8 @@ from evaluation.membership_inference import gower_distances
 from generators import schema as S
 
 SEEDS = range(42, 62)
-ARM_NAMES = ("independent_marginals", "gaussian_copula", "gaussian_copula_shrink025", "ctgan", "tvae")
+ARM_NAMES = ("independent_marginals", "gaussian_copula", "gaussian_copula_shrink025", "ctgan", "tvae",
+             "gaussian_copula_shrink010", "ctgan_small", "tabular_diffusion", "tabular_diffusion_reg")
 
 
 def main():

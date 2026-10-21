@@ -7,7 +7,7 @@ This is the metadata file Track 1/2 can read to know what columns
 exist and their types without opening the CSV.
 
 Run after preprocess_mimic_demo.py:
-    python generate_manifest.py
+    python preprocessing/generate_manifest.py
 """
 
 import json

@@ -3,14 +3,14 @@ Doppel — Track 3, Phase 2: data validation checks.
 
 Validates output/mimic_demo_clean.csv against:
 1. contracts/schemas/dataset.schema.json (via the generated manifest)
-2. Expected columns from schema_and_feature_dictionary.md
+2. Expected columns from docs/schema_and_feature_dictionary.md
 3. Known/documented null patterns (labs may be null, ID/label columns may not)
 4. Basic sanity bounds (age 0-89, split values, no negative LOS)
 
 Exits non-zero on failure so this can gate a CI step or K8s Job.
 
 Run after preprocess_mimic_demo.py and generate_manifest.py:
-    python validate_dataset.py
+    python preprocessing/validate_dataset.py
 """
 
 import json
@@ -32,7 +32,7 @@ CONTRACT_SCHEMA_PATH = Path("./contracts/schemas/dataset.schema.json")
 
 # Columns that must never be null (identifiers, labels, core demographics).
 # Lab columns are expected to have nulls on a sparse 100-patient demo and
-# are intentionally excluded here — see schema_and_feature_dictionary.md §5.
+# are intentionally excluded here — see docs/schema_and_feature_dictionary.md §5.
 REQUIRED_NON_NULL_COLUMNS = [
     "subject_id", "hadm_id", "admission_type", "ethnicity",
     "hospital_expire_flag", "los_hospital_days", "age", "gender",

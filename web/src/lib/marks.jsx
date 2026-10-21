@@ -4,6 +4,8 @@ export const FAMILY_COLOR = {
   copula: 'var(--c-blue)',
   ctgan: 'var(--c-orange)',
   tvae: 'var(--c-aqua)',
+  diffusion: 'var(--c-plum)',
+  other: 'var(--muted)',
 }
 
 export function shapePath(shape, r) {
@@ -16,6 +18,16 @@ export function shapePath(shape, r) {
       return `M0 ${-r * 1.2}L${r * 1.15} ${r * 0.9}H${-r * 1.15}Z`
     case 'triangleDown':
       return `M0 ${r * 1.2}L${r * 1.15} ${-r * 0.9}H${-r * 1.15}Z`
+    case 'hexagon': {
+      const k = r * 1.12
+      const pts = [0, 1, 2, 3, 4, 5].map((i) => [k * Math.cos((Math.PI / 3) * i), k * Math.sin((Math.PI / 3) * i)])
+      return 'M' + pts.map((pt) => pt.map((v) => v.toFixed(2)).join(' ')).join('L') + 'Z'
+    }
+    case 'plus': {
+      const w = r * 0.42
+      const k = r * 1.15
+      return `M${-w} ${-k}H${w}V${-w}H${k}V${w}H${w}V${k}H${-w}V${w}H${-k}V${-w}H${-w}Z`
+    }
     default:
       return null
   }

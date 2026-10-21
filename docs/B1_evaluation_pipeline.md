@@ -15,7 +15,7 @@ Define one evaluation protocol — exact formulas and thresholds for fidelity, d
 ## What was built
 
 ### Evaluation protocol
-Full formulas and pass/fail thresholds for fidelity (JS divergence, correlation preservation, KS tests), utility (TRTR/TSTR AUROC), and privacy (membership + attribute inference) are in [`eval_protocol.md`](../eval_protocol.md). Downstream utility label was chosen there too: `hospital_expire_flag` over `readmit_30d`, based on holdout class counts (ADR-003).
+Full formulas and pass/fail thresholds for fidelity (JS divergence, correlation preservation, KS tests), utility (TRTR/TSTR AUROC), and privacy (membership + attribute inference) are in [`eval_protocol.md`](eval_protocol.md). Downstream utility label was chosen there too: `hospital_expire_flag` over `readmit_30d`, based on holdout class counts (ADR-003).
 
 ### Four standalone metric modules
 
@@ -75,7 +75,7 @@ No flags, no config files. Each script's `main()` is the reference invocation. T
 
 | Output | Value |
 |---|---|
-| Evaluation protocol | [`eval_protocol.md`](../eval_protocol.md) |
+| Evaluation protocol | [`eval_protocol.md`](eval_protocol.md) |
 | Fidelity metrics module | `evaluation/fidelity_metrics.py` |
 | Utility pipeline module | `evaluation/utility_eval.py` |
 | Membership-inference module | `evaluation/membership_inference.py` |

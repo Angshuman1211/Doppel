@@ -88,7 +88,7 @@ python -m generators.sweep --seeds 0 1 2                            # the Phase 
 python -m generators.sweep --grid diffusion_refine --seeds 0 1 2    # the diffusion refinement
 
 # Track 3's data contract, after the dtype fix
-python generate_manifest.py && python validate_dataset.py
+python preprocessing/generate_manifest.py && python preprocessing/validate_dataset.py
 ```
 
 ---

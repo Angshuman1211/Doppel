@@ -1,55 +1,5 @@
 // Static words. Every number on the page comes from data/dashboard.json, not from this file.
 
-export const TRACKS = [
-  { id: 't1', name: 'Track 1', role: 'Generative modeling', owner: 'Angshuman' },
-  { id: 't2', name: 'Track 2', role: 'Evaluation', owner: 'Rayyan' },
-  { id: 't3', name: 'Track 3', role: 'Data engineering', owner: 'Anoushka' },
-  { id: 't4', name: 'Track 4', role: 'Systems and delivery', owner: 'Anshuman CE' },
-]
-
-export const ROADMAP = [
-  {
-    phase: 'Phase 1',
-    weeks: 'Weeks 1-2',
-    cells: {
-      t1: ['done', 'Generator contract, shared codec, validator, statistical baseline, literature review, diffusion design'],
-      t2: ['done', 'Evaluation protocol, utility task, literature survey'],
-      t3: ['done', 'Cleaned dataset, schema, feature dictionary, patient-level split'],
-      t4: ['done', 'Base image, Kubernetes namespace and smoke-test Job, draft contracts (no PR template)'],
-    },
-  },
-  {
-    phase: 'Phase 2',
-    weeks: 'Weeks 3-7',
-    cells: {
-      t1: ['done', 'CTGAN and TVAE, in-train model selection, 165-fit sweep. Diffusion begun, finished in Phase 3'],
-      t2: ['done', 'Fidelity, utility and privacy code, runner, contract JSON'],
-      t3: ['done', 'Dataset manifest, validation checks, preprocessing image and Job'],
-      t4: ['done', 'Images and Jobs for the statistical and CTGAN generators, Streamlit dashboard scaffold'],
-    },
-  },
-  {
-    phase: 'Phase 3',
-    weeks: 'Weeks 8-11',
-    cells: {
-      t1: ['done', 'TabDDPM-style diffusion generator, 390 tuning fits across every family, final-comparison settings chosen'],
-      t2: ['done', 'Nine generator settings x 20 seeds, calibrated attacks with two positive controls, validated Pareto frontier, this site'],
-      t3: ['partial', 'Manifest dtype fix, preprocessing Job on shared storage, byte-identical CSVs on Windows and Linux'],
-      t4: ['partial', 'Generation and evaluation Jobs on shared storage, Streamlit dashboard with uploads and a Pareto view. Jobs run one at a time, no orchestration'],
-    },
-  },
-  {
-    phase: 'Phase 4',
-    weeks: 'Weeks 12-14',
-    cells: {
-      t1: ['partial', 'Methodology and results report plan, generator architecture doc'],
-      t2: ['done', 'Evaluation section of the report, final tables and the Pareto figure, all for nine settings'],
-      t3: ['none', 'Data and methodology appendix'],
-      t4: ['none', 'Demo video, README polish, slides, report assembly'],
-    },
-  },
-]
-
 export const STATUS_LABEL = { done: 'Done', partial: 'Partly done', none: 'Not started' }
 
 export const STEPS = [
@@ -60,35 +10,23 @@ export const STEPS = [
 ]
 
 export const TERMS = [
-  ['Fidelity', 'How close the synthetic table is to the real one, measured as the average Jensen-Shannon divergence over 52 columns. Lower is better.'],
-  ['Utility', 'How well a model trained on synthetic data predicts in-hospital death on real held-out patients (AUROC, where 0.5 is guessing). Higher is better, and the real-data ceiling is the score of a model trained on real data.'],
-  ['Membership attack', 'An attacker tries to tell which real records were used to train the generator. 0.5 means guessing, 1.0 means the attacker always wins. Lower is better for privacy.'],
-  ['Worst case', 'The highest score among three membership attacks. The privacy score uses it, because a weak attack can make a leaky generator look safe.'],
-  ['True-positive rate at 1% false alarms', 'How many training records the attacker identifies while wrongly accusing only 1% of unseen records. Pure guessing gives 0.01.'],
-  ['Ceiling and floor', 'Reference generators that give the attacks a known best case (a generator that copies its training rows) and worst case (real rows it never saw).'],
-  ['Positive control', 'A generator known to leak, used to check that the attacks can see a leak at all. Here it is TVAE.'],
-  ['Seeds and ± values', 'Every generator is run 20 times with different random seeds. Dots show the mean and whiskers show one standard deviation.'],
-  ['Pareto frontier', 'A generator is on the frontier if no other generator is at least as good on every measure and better on one. It shows trade-offs and does not rank generators.'],
-  ['Training rows', 'Only 94 rows, against 110 modeled columns. With so little data a flexible generator can simply copy what it saw.'],
+  ['Fidelity', 'How close the synthetic records are to the real ones, column by column. Lower is better.'],
+  ['Utility', 'How well a model trained on synthetic records predicts in-hospital death for real patients it never saw. 0.5 is guessing; higher is better.'],
+  ['Membership attack', 'An attacker tries to tell which real patients were used to train the generator. 0.5 means guessing, 1.0 means it always wins. Lower is better.'],
+  ['Positive control', 'A generator known to copy its training data, used to check that the attacks can catch a leak. Here, TVAE and the 3000-step diffusion model.'],
+  ['Pareto frontier', 'The generators that no other generator beats on all three measures at once. It shows trade-offs; it does not rank.'],
+  ['Seeds and whiskers', 'Every generator was run 20 times. Dots show the average, whiskers show how much the runs varied.'],
 ]
 
 export const LIMITS = [
-  ['Utility cannot rank the generators.', 'The highest prediction scores belong to generators that copy or that generate the wrong rate of deaths, so read utility next to the other two measures.'],
-  ['The dataset is tiny.', '94 training rows and a 35-row held-out set with 6 positives. The 20 seeds vary the generators and not the patients.'],
-  ['Utility differences are mostly noise.', 'Seed-to-seed spread is 0.09 to 0.20 AUROC, larger than most gaps between generators.'],
-  ['The attack scores are proxies.', 'They come from generators fit on 47 rows, and a direct attack on the full-size generator has no valid non-members.'],
-  ['The pipeline is not orchestrated.', 'Track 4 reports the generation and evaluation Jobs running on a local Kubernetes cluster for two generators, but each one is started by hand and the Jobs do not yet use the tuned settings.'],
+  ['The dataset is tiny.', '94 training patients and 35 held-out ones, only 6 of whom died. The 20 runs vary the generators, not the patients.'],
+  ['Prediction scores cannot rank the generators.', 'The highest belong to generators that copy or that produce the wrong rate of deaths.'],
+  ['A low attack score is not proof of safety.', 'It means these attacks found nothing, not that nothing can be found.'],
 ]
 
 export const DOCS = [
-  ['Full evaluation result', 'docs/full_evaluation_result.md', 'Five generators, every metric, significance tests'],
-  ['Positive control result', 'docs/positive_control_result.md', 'The attacks against a generator that memorizes'],
-  ['Pareto frontier result', 'docs/full_pareto_result.md', 'The frontier and how sensitive it is'],
-  ['Evaluation protocol', 'docs/eval_protocol.md', 'Formulas, thresholds and generator arms'],
-  ['Literature survey', 'docs/membership_inference_survey.md', '18 checked sources on membership inference'],
-  ['Generator sweep', 'docs/sweep_result.md', 'Track 1: memorization against fidelity'],
-  ['Final evaluation result', 'docs/final_evaluation_result.md', 'All nine settings, every metric, the frontier and its tests'],
-  ['Evaluation section of the report', 'docs/report_evaluation_section.md', 'The protocol and the results, written up for the report'],
-  ['Decisions and problems log', 'docs/problems_and_decisions.md', 'ADR-001 to 030 and P-001 to 021'],
-  ['Project README', 'README.md', 'Status, architecture and how to run everything'],
+  ['Final evaluation result', 'docs/final_evaluation_result.md', 'All nine generators, every measure and test'],
+  ['Evaluation section of the report', 'docs/report_evaluation_section.md', 'The method and results, written up'],
+  ['Evaluation protocol', 'docs/eval_protocol.md', 'Formulas and choices behind every measure'],
+  ['Project README', 'README.md', 'Architecture and how to run everything'],
 ]

@@ -46,18 +46,6 @@ export default function Overview({ data }) {
           </div>
         </div>
 
-        <div className="notice" role="note">
-          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-            <circle cx="9" cy="9" r="8" fill="none" stroke="var(--accent)" strokeWidth="1.6" />
-            <path d="M9 8v5M9 5.2v.1" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          <span>
-            <b>The final comparison.</b> {arms.length} generator settings from the three families the project set out to compare (statistical, GAN and VAE,
-            diffusion), each run with {r.tvae.n_seeds} random seeds on {data.dataset.train} training rows. The dataset is small, so read every difference
-            against its spread.
-          </span>
-        </div>
-
         <div className="grid four" style={{ marginTop: 26 }}>
           <StatTile label="Evaluation runs" value={meta.runs} note={`${arms.length} generator settings × ${r.tvae.n_seeds} random seeds each`} />
           <StatTile label="Closest to the real data" value={f3(copulaJsd)} note={`The copulas and the floor tie. The neural generators are ${(nLo / copulaJsd).toFixed(1)} to ${Math.round(nHi / copulaJsd)}× further away.`} />

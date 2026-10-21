@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useData } from '../lib/hooks'
-import StatTile from '../components/StatTile'
 import { FAMILY_COLOR, Swatch } from '../lib/marks'
 
-const PREVIEW_ROWS = 20
+const PREVIEW_ROWS = 10
 const BASE = import.meta.env.BASE_URL
 
 function cell(v) {
@@ -40,7 +39,7 @@ function Bar({ v, max }) {
   )
 }
 
-const FIDELITY_PREVIEW = 15
+const FIDELITY_PREVIEW = 10
 
 export default function Datasets({ arms }) {
   const index = useData(`${BASE}data/datasets/index.json`)
@@ -49,7 +48,6 @@ export default function Datasets({ arms }) {
   const [seed, setSeed] = useState(null)
   const [all, setAll] = useState(false)
   const [allCols, setAllCols] = useState(false)
-  const [find, setFind] = useState('')
   const [detailCol, setDetailCol] = useState(null)
 
   const list = index.data?.arms
@@ -73,8 +71,6 @@ export default function Datasets({ arms }) {
     setAllCols(false)
   }
   const shown = t ? (all ? t.rows : t.rows.slice(0, PREVIEW_ROWS)) : []
-  const cols = useMemo(() => (t ? t.columns.filter((c) => c.name.toLowerCase().includes(find.trim().toLowerCase())) : []), [t, find])
-  const m = t?.manifest
 
   const fidCols = t?.fidelity?.columns ?? []
   const fidShown = allCols ? fidCols : fidCols.slice(0, FIDELITY_PREVIEW)
@@ -91,8 +87,7 @@ export default function Datasets({ arms }) {
           <span className="eyebrow">Data</span>
           <h2 id="h-data">Look at the synthetic records</h2>
           <p>
-            Pick a generator and a random seed to see the table it produced: its column types, the generator&rsquo;s manifest, and how its columns compare to the real training rows. This covers
-            the Streamlit dashboard&rsquo;s dataset explorer and its real-data comparison, for all 180 evaluated files.
+            Pick a generator and a seed to see the records it produced and where they differ from the real ones. To check a file of your own, use Upload below.
           </p>
         </div>
 
@@ -138,12 +133,6 @@ export default function Datasets({ arms }) {
 
             {t && (
               <div className="stack">
-                <div className="grid three">
-                  <StatTile label="Rows" value={t.n_rows} note="One synthetic hospital admission per row." />
-                  <StatTile label="Columns" value={t.n_cols} note="Same 56 columns as the real cleaned table." />
-                  <StatTile label="Missing values" value={t.missing} note="Empty cells across the whole table." />
-                </div>
-
                 <figure className="card" style={{ margin: 0 }}>
                   <div className="chart-head">
                     <div>
@@ -182,62 +171,6 @@ export default function Datasets({ arms }) {
                     </table>
                   </div>
                 </figure>
-
-                <div className="grid two">
-                  <div className="card">
-                    <h3>Column information</h3>
-                    <p className="muted small" style={{ marginTop: 4 }}>The type of each column and how many values are missing.</p>
-                    <input className="search" type="search" placeholder="Find a column" aria-label="Find a column" value={find} onChange={(e) => setFind(e.target.value)} />
-                    <div className="sheet short" tabIndex={0} role="region" aria-label="Column information, scrollable">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th scope="col">Column</th>
-                            <th scope="col">Data type</th>
-                            <th scope="col" className="n">Distinct</th>
-                            <th scope="col" className="n">Missing</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {cols.map((c) => (
-                            <tr key={c.name}>
-                              <td>{c.name}</td>
-                              <td className="muted">{c.dtype}</td>
-                              <td className="n">{c.distinct}</td>
-                              <td className="n">{c.missing}</td>
-                            </tr>
-                          ))}
-                          {cols.length === 0 && (
-                            <tr><td colSpan="4" className="muted">No column matches “{find}”.</td></tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="card">
-                    <h3>Generator manifest</h3>
-                    <p className="muted small" style={{ marginTop: 4 }}>The record the generator wrote about this run.</p>
-                    {m ? (
-                      <>
-                        <dl className="kv">
-                          <div><dt>Generator</dt><dd>{m.generator_name} {m.generator_version}</dd></div>
-                          <div><dt>Seed</dt><dd className="num">{m.seed}</dd></div>
-                          <div><dt>Records written</dt><dd className="num">{m.num_records}</dd></div>
-                          <div><dt>Trained on</dt><dd className="num">{m.train_rows} rows</dd></div>
-                          <div><dt>Created</dt><dd className="num">{String(m.created_utc).slice(0, 19).replace('T', ' ')} UTC</dd></div>
-                          <div><dt>Code version</dt><dd className="num">{m.git_commit}</dd></div>
-                        </dl>
-                        <details className="raw">
-                          <summary>Show the full manifest</summary>
-                          <pre>{JSON.stringify(m, null, 2)}</pre>
-                        </details>
-                      </>
-                    ) : (
-                      <p className="muted small" style={{ marginTop: 10 }}>No manifest file was found for this dataset.</p>
-                    )}
-                  </div>
-                </div>
 
                 {t.fidelity && (
                   <div className="card">

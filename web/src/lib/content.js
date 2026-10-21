@@ -88,6 +88,6 @@ export const DOCS = [
   ['Literature survey', 'docs/membership_inference_survey.md', '18 checked sources on membership inference'],
   ['Generator sweep', 'docs/sweep_result.md', 'Track 1: memorization against fidelity'],
   ['Evaluation section of the report', 'docs/report_evaluation_section.md', 'The protocol and the results, written up for the report'],
-  ['Decisions and problems log', 'docs/problems_and_decisions.md', 'ADR-001 to 030 and P-001 to 020'],
+  ['Decisions and problems log', 'docs/problems_and_decisions.md', 'ADR-001 to 030 and P-001 to 021'],
   ['Project README', 'README.md', 'Status, architecture and how to run everything'],
 ]

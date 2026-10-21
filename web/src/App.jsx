@@ -5,6 +5,7 @@ import Compare from './sections/Compare'
 import Tradeoff from './sections/Tradeoff'
 import Privacy from './sections/Privacy'
 import Datasets from './sections/Datasets'
+import Workbench from './sections/Workbench'
 import Project from './sections/Project'
 
 const SECTIONS = [
@@ -13,6 +14,7 @@ const SECTIONS = [
   ['tradeoffs', 'Trade-offs'],
   ['privacy', 'Privacy'],
   ['data', 'Data'],
+  ['upload', 'Upload'],
   ['project', 'Project'],
 ]
 
@@ -118,6 +120,7 @@ export default function App() {
             <Guard><Tradeoff data={data} /></Guard>
             <Guard><Privacy data={data} /></Guard>
             <Guard><Datasets arms={data.arms} /></Guard>
+            <Guard><Workbench /></Guard>
             <Guard><Project data={data} /></Guard>
           </>
         )}

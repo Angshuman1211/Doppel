@@ -130,9 +130,13 @@ AUROC over the two classifiers, higher is better) and privacy (worst-case member
 better), marks arms no other arm dominates, and bootstraps frontier membership and pairwise dominance over
 seeds. **Validation (Phase 3):** the frontier is recomputed under eight axis choices (a correlation axis, one
 classifier, one attack at a time, no utility axis), and the privacy axis is checked against the TVAE positive
-control. See [`docs/full_pareto_result.md`](full_pareto_result.md). On the current five arms every arm is
-non-dominated, so the frontier shows trade-off directions and does not rank generators. It must be rerun
-when the diffusion model or a retuned generator arrives.
+control. See [`full_pareto_result.md`](full_pareto_result.md). On the five Phase 3 arms every arm is
+non-dominated, so the frontier shows trade-off directions and does not rank generators.
+
+**Revision (2026-10-21):** rerun over all nine arms after the diffusion model and the retuned configs arrived
+([`final_evaluation_result.md`](final_evaluation_result.md)). Eight of nine are non-dominated; the original CTGAN
+is dominated by the tuned one. Without the utility axis TVAE and both diffusion settings drop to frequency 0.00.
+It must be rerun again if any arm is added or retuned.
 
 ## 7. Generator arms and the positive control (Phase 3)
 
@@ -143,6 +147,14 @@ and attribute attack's positive control:** Track 1's sweep found it copies 52 to
 attack that rates it as safe is too weak to trust. On the current run the Gower, ICD-9 and worst-case
 membership attacks and the gender attribute member gap all rate it most leaky (on the age target the 0.25-shrinkage
 copula's gap is larger), and the 4-column attack rates it least leaky, which is why the 4-column attack is not the privacy score.
+
+**Revision (2026-10-21):** four arms added for the final comparison (ADR-029): `gaussian_copula_shrink010`
+(tuned copula), `ctgan_small` (300 epochs, 64x64 networks), `tabular_diffusion` (3000 steps) and
+`tabular_diffusion_reg` (1000 steps, dropout 0.2). The 3000-step diffusion model is a **second positive control**:
+Track 1's sweep found 80% near-copies, and every attack except the 4-column one rates it the most leaky arm
+(worst case 0.787). The regularized setting passed Track 1's memorization guard and still has the second-highest
+worst case (0.706), so the guard is not treated as a privacy result. All nine arms run over seeds 42 to 61
+with the metrics and thresholds above unchanged; results in [`final_evaluation_result.md`](final_evaluation_result.md).
 
 Reporting added in Phase 3: pooled true-positive rate at 5% and 1% false-positive rate for every membership
 attack (chance 0.05 and 0.01; closes survey gap 1), and a per-record advantage report in

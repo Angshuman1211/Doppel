@@ -22,28 +22,28 @@ export const ROADMAP = [
     phase: 'Phase 2',
     weeks: 'Weeks 3-7',
     cells: {
-      t1: ['partial', 'CTGAN and TVAE, in-train model selection, 165-fit sweep. Diffusion model not built'],
+      t1: ['done', 'CTGAN and TVAE, in-train model selection, 165-fit sweep. Diffusion begun, finished in Phase 3'],
       t2: ['done', 'Fidelity, utility and privacy code, runner, contract JSON'],
       t3: ['done', 'Dataset manifest, validation checks, preprocessing image and Job'],
-      t4: ['partial', 'Images and Jobs for the statistical and CTGAN generators, dashboard scaffold. No evaluation Job'],
+      t4: ['done', 'Images and Jobs for the statistical and CTGAN generators, Streamlit dashboard scaffold'],
     },
   },
   {
     phase: 'Phase 3',
     weeks: 'Weeks 8-11',
     cells: {
-      t1: ['none', 'Diffusion training and final tuning of all generators'],
-      t2: ['done', 'Five generators x 20 seeds, calibrated attacks with a positive control, validated Pareto frontier. Rerun needed for diffusion'],
-      t3: ['none', 'Evaluation-dataset versioning, end-to-end data-flow validation'],
-      t4: ['partial', 'Results dashboard prototype (this site, built by Track 2). Pipeline wiring and end-to-end test not started'],
+      t1: ['done', 'TabDDPM-style diffusion generator, 390 tuning fits across every family, final-comparison settings chosen'],
+      t2: ['partial', 'Five generators x 20 seeds, calibrated attacks with a positive control, validated Pareto frontier, this site. Evaluation of the four Phase 3 settings is running'],
+      t3: ['partial', 'Manifest dtype fix, preprocessing Job on shared storage, byte-identical CSVs on Windows and Linux'],
+      t4: ['partial', 'Generation and evaluation Jobs on shared storage, Streamlit dashboard with uploads and a Pareto view. Jobs run one at a time, no orchestration'],
     },
   },
   {
     phase: 'Phase 4',
     weeks: 'Weeks 12-14',
     cells: {
-      t1: ['none', 'Methodology and results report sections'],
-      t2: ['none', 'Evaluation section, final tables and plots'],
+      t1: ['partial', 'Methodology and results report plan, generator architecture doc'],
+      t2: ['partial', 'Evaluation section and static Pareto figure written. Final tables wait for the running evaluation'],
       t3: ['none', 'Data and methodology appendix'],
       t4: ['none', 'Demo video, README polish, slides, report assembly'],
     },
@@ -54,7 +54,7 @@ export const STATUS_LABEL = { done: 'Done', partial: 'Partly done', none: 'Not s
 
 export const STEPS = [
   { n: 1, title: 'Prepare the data', text: 'Turn 100 MIMIC-III Demo patients into 129 clean hospital admissions, split by patient into 94 training and 35 held-out rows.', owner: 'Track 3', status: 'done' },
-  { n: 2, title: 'Generate synthetic records', text: 'Each generator learns from the 94 training rows only and produces a synthetic table of the same shape.', owner: 'Track 1', status: 'partial' },
+  { n: 2, title: 'Generate synthetic records', text: 'Each generator learns from the 94 training rows only and produces a synthetic table of the same shape.', owner: 'Track 1', status: 'done' },
   { n: 3, title: 'Evaluate on one protocol', text: 'Score every generator for realism, usefulness and privacy, over 20 random seeds each, against fixed reference points.', owner: 'Track 2', status: 'done' },
   { n: 4, title: 'Compare and deliver', text: 'Show the trade-offs, run the pipeline in containers, and write it up.', owner: 'Track 4', status: 'partial' },
 ]
@@ -73,12 +73,11 @@ export const TERMS = [
 ]
 
 export const LIMITS = [
-  ['The diffusion model does not exist yet.', 'Every comparison covers two of the three generator families the project set out to compare.'],
-  ['The neural generators are untuned.', 'CTGAN and TVAE run at their initial 300-epoch defaults, and the next tuning sweep may change these results.'],
+  ['Four of the nine settings are not on this page yet.', 'The diffusion model and the tuned copula and CTGAN settings exist and are being run through the same evaluation. Until that finishes, every chart covers the first five.'],
   ['The dataset is tiny.', '94 training rows and a 35-row held-out set with 6 positives. The 20 seeds vary the generators and not the patients.'],
   ['Utility differences are mostly noise.', 'Seed-to-seed spread is 0.09 to 0.20 AUROC, larger than most gaps between generators.'],
   ['The attack scores are proxies.', 'They come from generators fit on 47 rows, and a direct attack on the full-size generator has no valid non-members.'],
-  ['The containers were never run.', 'The Docker images and Kubernetes Jobs exist as files, and six gaps were found by reading them against the code they run.'],
+  ['The pipeline is not orchestrated.', 'Track 4 reports the generation and evaluation Jobs running on a local Kubernetes cluster for two generators, but each one is started by hand and the Jobs do not yet use the tuned settings.'],
 ]
 
 export const DOCS = [
@@ -88,6 +87,7 @@ export const DOCS = [
   ['Evaluation protocol', 'eval_protocol.md', 'Formulas, thresholds and generator arms'],
   ['Literature survey', 'docs/membership_inference_survey.md', '18 checked sources on membership inference'],
   ['Generator sweep', 'docs/sweep_result.md', 'Track 1: memorization against fidelity'],
-  ['Decisions and problems log', 'docs/problems_and_decisions.md', 'ADR-001 to 027 and P-001 to 018'],
+  ['Evaluation section of the report', 'docs/report_evaluation_section.md', 'The protocol and the results, written up for the report'],
+  ['Decisions and problems log', 'docs/problems_and_decisions.md', 'ADR-001 to 030 and P-001 to 020'],
   ['Project README', 'README.md', 'Status, architecture and how to run everything'],
 ]

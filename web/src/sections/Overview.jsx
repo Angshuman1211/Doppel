@@ -45,8 +45,8 @@ export default function Overview({ data }) {
             <path d="M9 8v5M9 5.2v.1" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           <span>
-            <b>Work in progress.</b> Five generator settings are evaluated on {data.dataset.train} training rows. The diffusion model, the third
-            planned generator family, is not built yet, so these results are a first comparison and not the final one.
+            <b>Work in progress.</b> Five generator settings are evaluated here, on {data.dataset.train} training rows. The diffusion model
+            and three tuned settings were added later and are going through the same evaluation now, so this is not the final comparison yet.
           </span>
         </div>
 

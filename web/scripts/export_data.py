@@ -29,7 +29,7 @@ from evaluation.membership_inference import gower_distances  # noqa: E402
 from generators import schema as S  # noqa: E402
 
 OUT = ROOT / "web" / "public" / "data" / "dashboard.json"
-DOCS_REF = "track2-phase3-react-dashboard"
+DOCS_REF = "main"
 
 ARMS = [
     {"id": "independent_marginals", "label": "Independent marginals", "short": "Floor", "family": "floor",

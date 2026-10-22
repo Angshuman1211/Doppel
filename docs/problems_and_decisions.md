@@ -11,7 +11,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 **Decision:** The 80/20 train/holdout split is done at the patient level (`subject_id`), then all of a patient's admissions inherit that split.
 **Why:** A single patient can have multiple admissions (`hadm_id`). Splitting at the admission level would let the same patient appear in both train and holdout, leaking patient-specific signal into the "held-out" evaluation.
 **Impact:** Track 1's generators only ever train on `train`-split admissions. Track 2's utility/privacy evaluation always treats `holdout` as the untouched real-world test set. On a 100-patient dataset this produces slightly uneven admission counts per split (94/35, not exactly 80/20) — see P-003.
-**Commit:** [`c7c177a`](https://github.com/Ganglet/Doppel/commit/c7c177a996d1e91e8f4ae84d65b85c44b43b9bf2)
+**Commit:** [`c7c177a`](https://github.com/Angshuman1211/Doppel/commit/c7c177a996d1e91e8f4ae84d65b85c44b43b9bf2)
 
 ---
 
@@ -19,7 +19,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 **Decision:** Ages computed from `DOB`/`ADMITTIME` are clipped at 89 and a separate boolean `age_89_plus` column is added, rather than passing the raw computed age through.
 **Why:** MIMIC-III shifts date-of-birth for patients over 89 as a HIPAA de-identification step, which otherwise produces raw ages around 300. Treating that as a real value would corrupt any age-based feature or model.
 **Impact:** Any downstream model (generator or evaluator) using `age` sees a capped, non-misleading value; anything that needs to know "this patient was actually 90+" should use `age_89_plus` instead.
-**Commit:** [`c7c177a`](https://github.com/Ganglet/Doppel/commit/c7c177a996d1e91e8f4ae84d65b85c44b43b9bf2)
+**Commit:** [`c7c177a`](https://github.com/Angshuman1211/Doppel/commit/c7c177a996d1e91e8f4ae84d65b85c44b43b9bf2)
 
 ---
 
@@ -27,7 +27,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 **Decision:** Track 2's train-on-synthetic/test-on-real utility evaluation targets `hospital_expire_flag` (in-hospital mortality), not `readmit_30d`.
 **Why:** Checked class counts by split before deciding: `hospital_expire_flag` has 6 positive cases in the 35-row holdout set; `readmit_30d` has only 2. Any AUROC computed on 2 positives is statistical noise on this dataset size.
 **Impact:** `readmit_30d` stays in the dataset as a secondary/stretch label if time allows, but all utility-pipeline results reported in [`utility_result.md`](utility_result.md) target `hospital_expire_flag`.
-**Commit:** [`d197827`](https://github.com/Ganglet/Doppel/commit/d19782754c4f2daabe4807af92430e68c2453e39)
+**Commit:** [`d197827`](https://github.com/Angshuman1211/Doppel/commit/d19782754c4f2daabe4807af92430e68c2453e39)
 
 ---
 
@@ -35,7 +35,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 **Decision:** The `icd9_codes` column in `output/mimic_demo_clean.csv` is written with `json.dumps()` and must be read with `json.loads()`.
 **Why:** The original implementation used `.apply(list)`, which pandas writes to CSV as a Python literal string (e.g. `['99591', '99662']`). That's not valid JSON — anyone reading the column with `json.loads()` (the obvious choice) would get a parse error, and the interface contract didn't say which parser to use.
 **Impact:** Any code that consumes this column (Track 1's generators, Track 2's evaluation code) must use `json.loads()`. Documented explicitly in [`schema_and_feature_dictionary.md`](schema_and_feature_dictionary.md) §8 so it isn't rediscovered the hard way.
-**Commit:** [`6280b0e`](https://github.com/Ganglet/Doppel/commit/6280b0e2d6ef7abcb055b0bf22f9dca9b095179f)
+**Commit:** [`6280b0e`](https://github.com/Angshuman1211/Doppel/commit/6280b0e2d6ef7abcb055b0bf22f9dca9b095179f)
 
 ---
 
@@ -43,7 +43,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 **Decision:** Track 2's fidelity, utility, membership-inference, and attribute-inference code was written and validated before Track 1 produced any generator, by treating the real `train` split as a placeholder for synthetic data.
 **Why:** Track 1 hadn't started, but the evaluation protocol and code didn't need to wait — building and testing the harness against real data (with the same shape and interface as future synthetic data) meant zero rewrite when real synthetic data arrives, just a swapped input.
 **Impact:** Every number in [`fidelity_result.md`](fidelity_result.md), [`utility_result.md`](utility_result.md), [`membership_inference_result.md`](membership_inference_result.md), and [`attribute_inference_result.md`](attribute_inference_result.md) validates the *code*, not any generator's actual output. This must stay explicit in every writeup until real synthetic data exists.
-**Commits:** [`8f7fefe`](https://github.com/Ganglet/Doppel/commit/8f7fefe59e873fa9c2983ebb538989a1efe705c8), [`1f87231`](https://github.com/Ganglet/Doppel/commit/1f87231c0641fa57e993311863790aba87ff588c), [`09f7958`](https://github.com/Ganglet/Doppel/commit/09f79584221ddf410ebf6521f2fc72ca45c67f06), [`2b259af`](https://github.com/Ganglet/Doppel/commit/2b259afb1579ceec1a21c0ed7bb6cbe39f681ac2)
+**Commits:** [`8f7fefe`](https://github.com/Angshuman1211/Doppel/commit/8f7fefe59e873fa9c2983ebb538989a1efe705c8), [`1f87231`](https://github.com/Angshuman1211/Doppel/commit/1f87231c0641fa57e993311863790aba87ff588c), [`09f7958`](https://github.com/Angshuman1211/Doppel/commit/09f79584221ddf410ebf6521f2fc72ca45c67f06), [`2b259af`](https://github.com/Angshuman1211/Doppel/commit/2b259afb1579ceec1a21c0ed7bb6cbe39f681ac2)
 
 ---
 
@@ -58,7 +58,7 @@ ADRs and Problems are numbered independently and sequentially, oldest first.
 **Decision:** `.gitignore` excludes all raw MIMIC-III Demo CSVs (`PATIENTS.csv`, `ADMISSIONS.csv`, `LABEVENTS.csv`, etc.), PhysioNet license/checksum files, and Python cache directories.
 **Why:** These files are only needed locally to run `preprocess_mimic_demo.py`; committing them is unnecessary and, as a general practice for clinical source data, worth avoiding even when the specific dataset is de-identified and open-access.
 **Impact:** Anyone re-running preprocessing locally won't accidentally commit raw source tables even with a broad `git add`.
-**Commit:** [`6280b0e`](https://github.com/Ganglet/Doppel/commit/6280b0e2d6ef7abcb055b0bf22f9dca9b095179f)
+**Commit:** [`6280b0e`](https://github.com/Angshuman1211/Doppel/commit/6280b0e2d6ef7abcb055b0bf22f9dca9b095179f)
 
 ---
 

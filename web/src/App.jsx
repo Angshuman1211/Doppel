@@ -136,7 +136,7 @@ export default function App() {
             <div className="small">
               Results exported {meta_date(data.meta.generated_utc)} from commit {data.meta.source_commit}
               <br />
-              <a href={data.meta.repo}>github.com/Ganglet/Doppel</a>
+              <a href={data.meta.repo}>github.com/Angshuman1211/Doppel</a>
             </div>
           </div>
         </footer>

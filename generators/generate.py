@@ -52,6 +52,8 @@ GENERATORS = _LazyRegistry({
     "ctgan": "ctgan_tvae:CTGAN",
     "tvae": "ctgan_tvae:TVAE",
     "tabular_diffusion": "diffusion:TabularDiffusion",
+    "dp_marginals": "dp_copula:DPMarginals",
+    "dp_copula": "dp_copula:DPGaussianCopula",
 })
 
 

@@ -81,7 +81,7 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 - Full table from [`final_comparison_result.md`](final_comparison_result.md). Read in this order: fidelity, correlation, utility, privacy, then the frontier.
 - Fidelity: the copula family is an order of magnitude ahead of every neural arm, **0.0164** against 0.042 to 0.377.
 - Correlation: only the copula beats the independent floor (**0.1021** at λ = 0.10 against **0.1629**). Both CTGAN arms score *above* the floor, so no dependence was learned at either network size.
-- Utility: inside the copula family it rises with correlation, **0.487 → 0.678**, the one place the axes behave as the blueprint assumed.
+- Utility: on this split it rises with correlation inside the copula family, **0.487 → 0.678**. **Do not claim this as a finding.** Across 10 redrawn patient-level splits the same comparison is exactly zero (−0.000, p = 1.00), so it belongs to this split and not to the method ([`research/split_study_result.md`](../research/split_study_result.md)).
 - Privacy: the same ordering on all three attacks, `tabular_diffusion` **0.787** > `tabular_diffusion_reg` **0.706** > `tvae` **0.681** > copula **0.646–0.657** > floor **0.640** > CTGAN **0.634**.
 - State the attack's floor explicitly: a generator with no dependence at all scores **0.640**, so the diffusion leak is 0.787 against 0.64, not against 0.5.
 - TVAE is the only arm dominated outright (frontier frequency **0.37**), and its utility comes from copying, so it must never be read as "TVAE preserves utility".
@@ -118,6 +118,12 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 - Every arm was rerun against the 20-row holdout without them. Utility shifts up **+0.08 to +0.10 for every arm**, the top two are unchanged, and the spread narrows, so no conclusion depends on the choice.
 - Attribute inference is the one metric that was genuinely corrupted: on the full holdout the attacker scores **below chance on non-members** (−0.063 to −0.073 on gender), which inflates the member gap by roughly 0.05 to 0.08. Those figures come from the clean holdout instead (ADR-032).
 - Worth one line on why this is reported rather than quietly fixed: the artifact was found, measured both ways, and the choice stated.
+
+**B5b. How much of this depends on one split.**
+- The benchmark fixes one 80/20 patient-level split and varies only seeds. Redrawing the split 10 times shows holdout size ranges **22 to 40 rows** and deaths **5 to 10**, against the reported 35 and 6.
+- Roughly **half the variance** in utility comes from the split rather than the generator (split share 20% to 62% by arm), so a ± over seeds understates the real spread.
+- Paired across splits, the structural results hold and get stronger: the copula beats the default and the floor on correlation in **10 of 10** splits (p = 0.002), CTGAN is worse than the floor on correlation in **10 of 10**, and the copying arms beat the tuned copula on utility in 9 and 10 splits.
+- One reported gain does not survive, and saying so is the honest version of this section (see B3's note).
 
 **B6. Threats to validity, stated by us rather than by the examiner.**
 - 94 rows, 110 modeled columns, 35 holdout rows of which 15 are one patient, 6 positives for the utility task.

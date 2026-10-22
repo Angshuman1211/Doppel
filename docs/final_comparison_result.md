@@ -41,7 +41,7 @@ What the numbers are: fidelity against the real **train** split, utility as trai
 
 - **Fidelity**: the copula family sits an order of magnitude ahead of every neural arm (0.0164 against 0.042 to 0.377), and is indistinguishable from the independent floor on marginals, as expected since both sample empirical marginals.
 - **Correlation**: only the copula beats the floor's 0.1629, and it improves monotonically as shrinkage falls, to 0.1021 at λ = 0.10. Both CTGAN arms sit *above* the floor, meaning no dependence was learned at either size.
-- **Utility**: rises with correlation inside the copula family (0.487 → 0.678), which is the one place the three axes behave as the blueprint assumed. The highest scores belong to arms that are copying or mis-calibrated, see below.
+- **Utility**: rises with correlation inside the copula family on this split (0.487 → 0.678). A later study of 10 redrawn patient-level splits found that difference is exactly zero on average (−0.000, p = 1.00, winning 4 splits of 10), so it is a property of this split rather than of shrinkage, and the report should not claim it ([`research/split_study_result.md`](../research/split_study_result.md)). The highest scores belong to arms that are copying or mis-calibrated, see below.
 - **Privacy**: ordering is identical on all three attacks: `tabular_diffusion` (0.787) > `tabular_diffusion_reg` (0.706) > `tvae` (0.681) > copula family (0.646 to 0.657) > `independent_marginals` (0.640) > CTGAN arms (0.634). The attack's floor on this dataset is about 0.64, not 0.50, since even a generator with no dependence at all scores 0.640, so the diffusion leak is 0.787 against a floor of 0.64.
 
 ## The frontier is held up by its weakest axis

@@ -465,3 +465,38 @@ sklearn.exceptions.NotFittedError: This SimpleImputer instance is not fitted yet
 **Problem:** With the nine-arm benchmark finished, Track 1 updated the web dashboard to show it: four arm entries in the export script, a fifth family colour, two marker shapes, and six places in the copy that still said "five generators" or "the diffusion model does not exist yet". Track 2 did the same work at the same time on their own branch, and also ported the contract and fidelity checks into a browser workbench. Both versions were correct and neither knew about the other until the merge, so about 3,500 lines of Track 1's edits were discarded in favour of Track 2's, which went further.
 **Fix:** Track 1's edits were dropped and Track 2's kept, since theirs covered everything and added the workbench. The duplicate work was in another track's files, which is exactly where a check before starting is cheapest: a fetch and a look at open branches would have shown `track2-phase4-evaluation-report` in progress.
 **Lesson:** Before editing another track's files, check their branches, not just `main`. The cost here was an hour of duplicated effort rather than a wrong result, but the same pattern in a shared file would have produced a conflict instead.
+
+## Architecture Decisions (continued)
+
+### ADR-033 — Canonical LF bytes and optional SHA-256 dataset pin
+**Decision:** Write the preprocessing CSVs with LF line endings on every OS and optionally gate validation on the SHA-256 of `mimic_demo_clean.csv`. The Phase 3 Job configuration pins the expected digest to `9e263f45fd4fa9ed7c1b53b656c77aceef84eda9162819730a6dcafbc26ad83e`.
+**Why:** A CRLF-only conversion changes the CSV's byte hash even when the parsed table is unchanged. Canonical line endings make the digest reproducible across Windows and Linux.
+**Impact:** The validator checks the file bytes only when `EXPECTED_DATASET_SHA256` is set. It does not add a content hash to the manifest, and the Job writes its output before validation, so a mismatch fails the Job but leaves the written file on the volume. The validator change and Job pin are on an unmerged branch; they are not in `origin/main` at `887cedc`.
+**Commit:** [`acb9449`](https://github.com/Angshuman1211/Doppel/commit/acb944914eeab87bec372c22f1bd10fb42cf02c1), [`8e6fe8b`](https://github.com/Angshuman1211/Doppel/commit/8e6fe8b634982de5c2b62a0599f108db51af48f1)
+**Branch:** `track3-phase3-hash-gate`
+
+## Problem Follow-ups
+
+### P-024 — The preprocessing Job's raw-data and output paths were stale in the Phase 2 write-up
+**Week/Date:** 2026-10-22
+**Problem:** P-017 and `C2_data_validation.md` described the Job using undefined PVC names and not setting `RAW_DIR`, although main's current Job uses `RAW_DIR=/app/raw` and the shared `doppel-shared-pvc` for the raw and output subpaths.
+**Fix:** The Job rewrite is in main at commit `dd44ec3`. Local preprocessing from the repository's raw CSVs into a temporary output directory produced the expected dataset hash. No Job, Docker image, or cluster execution was verified; the write-up needs that limitation to remain explicit. Other Track 4 findings in P-017/P-020 are not claimed fixed here.
+**Lesson:** Refresh delivery-status prose from the merged Job spec, but do not treat a corrected manifest or local run as a cluster test.
+
+### P-025 — CRLF changes the dataset's byte hash even when rows are unchanged
+**Week/Date:** 2026-10-22
+**Problem:** The LF-terminated clean CSV hashes to `9e263f45fd4fa9ed7c1b53b656c77aceef84eda9162819730a6dcafbc26ad83e`. Replacing its 130 LF terminators with CRLF produces `02f67dd6f9fad88dff84473c1efe4d15051e0c9a145553e349d33b1f3bbafaef`; the line-ending-only transformation changes the byte hash.
+**Fix:** The preprocessing script specifies `lineterminator="\n"` for each of its three CSV outputs (commit `ba1f14e`). A local regeneration to a temporary directory reproduced the expected clean-CSV hash.
+**Lesson:** Compare raw-file hashes only after standardizing line endings, and keep the exact bytes—not just parsed table equality—as the versioning contract.
+
+### P-026 — One patient's admissions dominate holdout demographic coverage
+**Week/Date:** 2026-10-22
+**Problem:** Subject 41976 accounts for 15 of 35 holdout admissions, all male and in the `HISPANIC/LATINO - PUERTO RICAN` category. This is the same split issue documented in P-003 and P-011.
+**Fix:** Do not resplit. The shared `clean_holdout()` helper excludes this patient for analyses where the imbalance is relevant (ADR-032); it leaves train unchanged. The measured clean holdout has 20 admissions from 19 patients, with 12 female and 8 male admissions.
+**Lesson:** Keep the patient-level split for leakage control, and state explicitly whether a reported analysis uses the full holdout or the cleaned comparison set.
+
+### P-027 — Generic holdout coverage checks would flag sparse ICD-9 primary codes
+**Week/Date:** 2026-10-22
+**Problem:** After excluding subject 41976, the four demographic/administrative categorical fields (`gender`, `ethnicity`, `admission_type`, `first_careunit`) have no holdout levels absent from train, but 13 `icd9_primary` values remain absent from train. The shared codec classifies `icd9_primary` as categorical, so a strict check over all categorical fields would reject this real dataset.
+**Fix:** No validator change. Per the owner's decision, document this measurement and leave P-018 open pending a group decision on whether coverage diagnostics should be scoped to demographic/administrative fields and how sparse ICD-9 codes should be reported.
+**Lesson:** Measure category support before turning a coverage gap into a blocking data-quality failure.

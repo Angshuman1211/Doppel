@@ -286,7 +286,7 @@ def main():
             "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "source_commit": git("rev-parse", "--short", "HEAD"),
             "runs": sum(s["n_seeds"] for s in summaries.values()),
-            "seeds": [42, 61], "docs_ref": DOCS_REF, "repo": "https://github.com/Ganglet/Doppel",
+            "seeds": [42, 61], "docs_ref": DOCS_REF, "repo": "https://github.com/Angshuman1211/Doppel",
         },
         "dataset": dataset_block(),
         "arms": ARMS,

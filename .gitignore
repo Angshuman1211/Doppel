@@ -42,3 +42,5 @@ results/
 # Node dependencies (web dashboard)
 web/node_modules/
 .venv-dashboard/
+
+Presentation_Files/

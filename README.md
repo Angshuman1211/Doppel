@@ -262,7 +262,7 @@ The third family now exists, and 390 fits across two grids tuned every arm. Best
 The cleaned dataset is committed, so you can see the whole data-to-result path in about a minute with no downloads and no cloud account:
 
 ```bash
-git clone https://github.com/Ganglet/Doppel.git
+git clone https://github.com/Angshuman1211/Doppel.git
 cd Doppel
 pip install -r requirements.txt
 

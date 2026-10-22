@@ -6,13 +6,19 @@ Validates output/mimic_demo_clean.csv against:
 2. Expected columns from docs/schema_and_feature_dictionary.md
 3. Known/documented null patterns (labs may be null, ID/label columns may not)
 4. Basic sanity bounds (age 0-89, split values, no negative LOS)
+5. Optionally, the exact bytes of the CSV (sha256), so results can only be
+   produced from the dataset version they were validated against
 
 Exits non-zero on failure so this can gate a CI step or K8s Job.
 
 Run after preprocess_mimic_demo.py and generate_manifest.py:
     python preprocessing/validate_dataset.py
+
+To pin the dataset version, set EXPECTED_DATASET_SHA256 to the sha256 of
+output/mimic_demo_clean.csv. If it is unset the byte check is skipped.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -29,6 +35,9 @@ OUT_DIR = Path(os.environ.get("OUT_DIR", "./output"))
 CSV_PATH = OUT_DIR / "mimic_demo_clean.csv"
 MANIFEST_PATH = OUT_DIR / "mimic_demo_clean.manifest.json"
 CONTRACT_SCHEMA_PATH = Path("./contracts/schemas/dataset.schema.json")
+
+# Optional: sha256 the CSV must have. Case-insensitive (Get-FileHash prints uppercase).
+EXPECTED_DATASET_SHA256 = os.environ.get("EXPECTED_DATASET_SHA256", "").strip().lower()
 
 # Columns that must never be null (identifiers, labels, core demographics).
 # Lab columns are expected to have nulls on a sparse 100-patient demo and
@@ -128,6 +137,19 @@ def validate_sanity_bounds(df, errors):
     check(df["readmit_30d"].isin([0, 1]).all(), "readmit_30d has non-binary values", errors)
 
 
+def validate_dataset_hash(errors):
+    """Byte-level pin. Skipped unless EXPECTED_DATASET_SHA256 is set, so local runs are unaffected."""
+    if not EXPECTED_DATASET_SHA256:
+        return
+    actual = hashlib.sha256(CSV_PATH.read_bytes()).hexdigest()
+    check(
+        actual == EXPECTED_DATASET_SHA256,
+        f"{CSV_PATH.name} sha256 is {actual}, expected {EXPECTED_DATASET_SHA256} — "
+        "this is not the dataset version the results were produced on",
+        errors,
+    )
+
+
 def main():
     errors = []
 
@@ -146,6 +168,7 @@ def main():
         validate_split_values(df, errors)
         validate_no_subject_leakage(df, errors)
         validate_sanity_bounds(df, errors)
+    validate_dataset_hash(errors)
 
     if errors:
         print(f"VALIDATION FAILED — {len(errors)} issue(s):", file=sys.stderr)

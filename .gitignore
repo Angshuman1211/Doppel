@@ -44,3 +44,7 @@ web/node_modules/
 .venv-dashboard/
 
 Presentation_Files/
+
+# Research extension: regenerated outputs and fetched third-party data
+research/output/
+research/data/

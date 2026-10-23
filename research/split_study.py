@@ -26,7 +26,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from evaluation.arms import ARMS, resolve  # noqa: E402
+from evaluation.arms import REPORTED_ARMS, resolve  # noqa: E402
 from generators import schema as S  # noqa: E402
 from generators.generate import synthesize  # noqa: E402
 
@@ -66,11 +66,15 @@ def _run(arm, gen_seed, split_seed):
     tmp.unlink()
 
     fidelity = run_fidelity_report(train, synth_csv)
-    utility = tstr_eval(synth_csv, holdout)
+    # A draw whose mortality column has one class has no TSTR AUROC at all. Record it rather than
+    # crashing the grid: with 30 splits this happens where 10 splits never showed it.
+    degenerate = synth_csv["hospital_expire_flag"].nunique() < 2
+    utility = ({"logistic_regression": np.nan, "random_forest": np.nan} if degenerate
+               else tstr_eval(synth_csv, holdout))
 
     return {
         "split_seed": split_seed, "arm": arm, "gen_seed": gen_seed,
-        "n_train": len(train), "n_holdout": len(holdout),
+        "n_train": len(train), "n_holdout": len(holdout), "degenerate_label": int(degenerate),
         "holdout_deaths": int(holdout["hospital_expire_flag"].sum()),
         "mean_js": fidelity["mean_js_divergence"], "corr_diff": fidelity["correlation_diff"],
         "tstr_lr": utility["logistic_regression"], "tstr_rf": utility["random_forest"],
@@ -95,7 +99,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--splits", type=int, default=10)
     parser.add_argument("--seeds", type=int, default=3)
-    parser.add_argument("--arms", nargs="+", default=sorted(ARMS))
+    # REPORTED_ARMS, not every key of ARMS: the DP extension arms produce a single-class mortality
+    # column on 20-45% of draws, which is a finding in research/dp_study.py and noise here.
+    parser.add_argument("--arms", nargs="+", default=list(REPORTED_ARMS))
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
     args = parser.parse_args(argv)
 
@@ -115,6 +121,7 @@ def main(argv=None):
             rows.append(fut.result())
             if i % 20 == 0 or i == len(tasks):
                 print(f"[{i:4d}/{len(tasks)}] {time.time() - start:6.0f}s", flush=True)
+                pd.DataFrame(rows).to_csv(OUT_DIR / "split_study.csv", index=False)   # crash insurance
 
     df = pd.DataFrame(rows).sort_values(["arm", "split_seed", "gen_seed"], ignore_index=True)
     df.to_csv(OUT_DIR / "split_study.csv", index=False)

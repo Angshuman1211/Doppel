@@ -1,5 +1,7 @@
 # Repeated Split Study — half the utility spread is the split, and one reported gain does not survive it (2026-10-22)
 
+> **Superseded in part (2026-10-24).** This study has since been rerun at **30 splits** (810 fits), and the paired-test table below is replaced by the one in [`scale_study_result.md`](scale_study_result.md): with three times the evidence, four of six utility comparisons become significant under Holm correction, and the three neural margins reported here shrink by a third to a half. The 10-split data is preserved at `research/output/split_study_10splits.csv`. What holds unchanged: the variance decomposition (split share 21–61% at 30 splits against 20–62% here), the "reported split is not typical" table, and the headline that the copula's shrinkage utility gain is zero — now at 17 wins of 30, p = 0.329.
+
 Post-course extension work, outside the graded pipeline (item 2 of the improvement plan). The reported benchmark fixes one 80/20 patient-level split and varies only generator seeds, so every utility number carries an unmeasured dependence on which patients landed in the holdout. This redraws the split 10 times by the same procedure (ADR-001), refits all nine arms on each, and scores fidelity against that split's train and utility against that split's holdout.
 
 ```bash

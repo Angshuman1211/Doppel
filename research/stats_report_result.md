@@ -21,23 +21,27 @@ Utility is the report's TSTR AUROC, the mean of logistic regression and random f
 
 ---
 
-## 1. The reported interval understates cohort uncertainty by up to 18×
+## 1. Seed intervals understate cohort uncertainty for fidelity, and overstate it for utility (corrected 2026-10-24)
 
-Ratio of the patient bootstrap's standard deviation to the standard error the reported seed spread implies:
+> **Correction (2026-10-24).** The first version compared the patient bootstrap's standard deviation with the seed **standard error** (sd/√20) and called the result "the reported ± is up to 18× too narrow". But the tables in the report print the seed **standard deviation**, not its standard error, so against the ± actually printed every ratio is √20 ≈ 4.5 times smaller. The left half of the table below is the comparison with what the report prints; the right half is the original comparison with the standard error, kept so the arithmetic can be checked.
 
-| Arm | Mean JSD | Corr. diff | TSTR |
-|---|---|---|---|
-| `independent_marginals` | **18.2** | 11.9 | 1.6 |
-| `gaussian_copula` | 15.5 | 8.8 | 2.3 |
-| `gaussian_copula_shrink025` | 15.5 | 7.1 | 1.7 |
-| `gaussian_copula_shrink010` | 11.2 | 6.9 | 1.9 |
-| `ctgan` | 1.7 | **14.6** | 1.1 |
-| `ctgan_small` | 3.1 | 10.7 | 1.0 |
-| `tvae` | 4.3 | 7.5 | 4.1 |
-| `tabular_diffusion` | 1.9 | 1.0 | 4.1 |
-| `tabular_diffusion_reg` | 1.4 | 2.4 | 4.0 |
+Patient bootstrap standard deviation divided by:
 
-The pattern is the uncomfortable one: the arms with the *tightest* seed intervals are the ones whose reported precision is most misleading. `independent_marginals` reports a mean JSD of 0.0162 ± 0.0007 over seeds, because sampling empirical marginals is a near-deterministic procedure — and that stability says nothing about the 80 patients those marginals came from, where the real spread is 18 times larger. A narrow seed interval measures the fitting procedure's repeatability, not the measurement's precision.
+| Arm | printed ± (seed sd): JSD | Corr. diff | TSTR | seed SE: JSD | Corr. diff | TSTR |
+|---|---|---|---|---|---|---|
+| `independent_marginals` | 4.1 | 2.7 | 0.4 | 18.2 | 11.9 | 1.6 |
+| `gaussian_copula` | 3.5 | 2.0 | 0.5 | 15.5 | 8.8 | 2.3 |
+| `gaussian_copula_shrink025` | 3.5 | 1.6 | 0.4 | 15.5 | 7.1 | 1.7 |
+| `gaussian_copula_shrink010` | 2.5 | 1.5 | 0.4 | 11.2 | 6.9 | 1.9 |
+| `ctgan` | 0.4 | 3.3 | 0.2 | 1.7 | 14.6 | 1.1 |
+| `ctgan_small` | 0.7 | 2.4 | 0.2 | 3.1 | 10.7 | 1.0 |
+| `tvae` | 1.0 | 1.7 | 0.9 | 4.3 | 7.5 | 4.1 |
+| `tabular_diffusion` | 0.4 | 0.2 | 0.9 | 1.9 | 1.0 | 4.1 |
+| `tabular_diffusion_reg` | 0.3 | 0.5 | 0.9 | 1.4 | 2.4 | 4.0 |
+
+**Fidelity.** For the copula family and the independent floor the printed ± is 2.5 to 4.1 times too narrow on mean JSD and 1.5 to 2.7 times on correlation. The reason is the one the first version gave: sampling empirical marginals is near-deterministic, so `independent_marginals` prints 0.0162 ± 0.0007 over seeds, while redrawing the 80 patients moves the same number about four times as much. A narrow seed interval measures the fitting procedure's repeatability, not the measurement's precision.
+
+**Utility.** The opposite holds. The printed ± on TSTR AUROC is wider than the patient bootstrap for every arm (ratios 0.2 to 0.9), because with 6 held-out deaths the generator seed already moves the score a lot. The report's utility intervals are therefore conservative with respect to the test cohort. (They still miss the training-cohort variation that §4 and the split study measure.)
 
 ## 2. Five of nine arms cannot be distinguished from a redrawn cohort on marginal fidelity
 
@@ -83,7 +87,7 @@ This is also why the basic interval for mean JSD has a negative lower bound for 
 
 **That was a power problem, and item 7 settled it.** A signed-rank test on 10 pairs cannot return a p below 2/2¹⁰ = 0.002, so the Holm floor for a six-test family is 0.012, and the observed utility p-values (0.0098 to 0.625) sat at or above the correction threshold rather than far above it. Scaling to 30 splits, **four of the six comparisons do survive** — see [`scale_study_result.md`](scale_study_result.md), which supersedes this section. The neural arms beat the tuned copula and the tuned copula beats the no-dependence floor, at adjusted p ≤ 0.010; the copula shrinkage gain and the CTGAN tuning gain remain null. The column below is kept because the contrast between it and the 30-split table is the lesson: "not significant" at a feasible number of resamples is not the same as "not there".
 
-Everything else in this document is independent of the split count and stands: the interval understatement in §1, the measurement floor in §2, and the warning about test-set bootstraps in §4.
+Everything else in this document is independent of the split count and stands: the interval comparison in §1 (as corrected), the measurement floor in §2, and the warning about test-set bootstraps in §4.
 
 By contrast, all four correlation and both marginal-fidelity comparisons survive **both** procedures, with Holm-adjusted p ≤ 0.016 in the bootstrap and ≤ 0.008 across splits. The ordering of these generators on fidelity is a finding; their ordering on utility is not.
 
@@ -112,7 +116,7 @@ The bootstrap mean of TSTR sits 0.021 to 0.027 above the reported estimate for e
 - **Utility comparisons must be stated as paired results over splits with the correction attached**, never as a ± over seeds on one split. Which ones are claimable is settled in [`scale_study_result.md`](scale_study_result.md): four of six at 30 splits, not the zero of six this document found at 10.
 - The fidelity and correlation orderings can be stated as findings, with Holm-corrected p-values, and should be the paper's quantitative backbone.
 - Add the measurement floor. "The tuned copula has reached the limit of what this cohort can measure" is a better result than any of the margins currently reported, and it explains why the copula family's marginal-fidelity differences are not worth discussing.
-- Report ± over patients, not over seeds, or report both and say which is which.
+- Report ± over patients, not over seeds, or report both and say which is which. For fidelity the seed ± is 1.5 to 4 times too narrow; for utility it is already wider than the test-cohort bootstrap.
 
 ## Limits
 

@@ -87,7 +87,7 @@ The first attempt at this run crashed after about 380 fits. `split_study.py` def
 - **The utility ordering can be claimed after all**, as a paired result over 30 patient-level splits with Holm correction: the neural arms beat the tuned copula (adjusted p ≤ 0.010) and the tuned copula beats the no-dependence floor (adjusted p = 0.0009). State the number of splits and the correction, not a ± over seeds.
 - **Do not claim** the copula shrinkage gain (p = 0.329) or, on the report's metric, the CTGAN tuning gain (p = 0.210).
 - **"Utility rewards memorization" now has proper support at n = 94**: both copying arms, `tabular_diffusion` and `tvae`, beat the tuned copula with corrected p ≤ 0.010. Read together with item 6, where the coupling vanishes at n = 1,446, the paper gets a scoped, well-evidenced claim instead of a general, weakly-evidenced one.
-- Replace §3 of [`stats_report_result.md`](stats_report_result.md) with this table, and the paired-test table in [`split_study_result.md`](split_study_result.md) with this one. The patient bootstrap conclusions in items 1 to 5 of that document — the 18× interval understatement, the measurement floor, the warning about test-set bootstraps — are unaffected, because none of them depend on the split count.
+- Replace §3 of [`stats_report_result.md`](stats_report_result.md) with this table, and the paired-test table in [`split_study_result.md`](split_study_result.md) with this one. The patient bootstrap conclusions in items 1 to 5 of that document — the interval comparison (corrected on 2026-10-24: fidelity ± 1.5 to 4× too narrow, utility ± already conservative), the measurement floor, the warning about test-set bootstraps — are unaffected, because none of them depend on the split count.
 
 ## Limits
 

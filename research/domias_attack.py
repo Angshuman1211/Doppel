@@ -66,7 +66,9 @@ def auroc(scores, labels):
 def tpr_at_fpr(scores, labels, fpr_level):
     from sklearn.metrics import roc_curve
     fpr, tpr, _ = roc_curve(labels, scores)
-    return float(np.interp(fpr_level, fpr, tpr))
+    # The highest TPR at a false-positive rate no higher than the target, as evaluation/membership_inference.py
+    # does. Interpolating between ROC points would credit the attack with a threshold it cannot realize.
+    return float(tpr[fpr <= fpr_level].max())
 
 
 def density_scores(candidates, synth, reference, codec, seed):

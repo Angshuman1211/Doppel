@@ -13,6 +13,21 @@ Split seeds are `1000 + k`, so the original 10 splits are a subset of the 30 and
 
 ---
 
+## 0. Rerun on a second machine (2026-10-24)
+
+Track 2 reran the 30-split grid (810 fits) on its own machine to check this table. Every conclusion below holds; the numbers differ slightly, as the nine-arm benchmark did between the two machines.
+
+| Comparison | Diff | Wins | Holm, mean of two | Holm, RF only |
+|---|---|---|---|---|
+| `tabular_diffusion` − `gaussian_copula_shrink010` | +0.063 | 23/30 | **0.0006** | **0.0082** |
+| `tabular_diffusion_reg` − `gaussian_copula_shrink010` | +0.071 | 22/30 | **0.0010** | 0.123 |
+| `tvae` − `gaussian_copula_shrink010` | +0.046 | 23/30 | **0.0034** | **0.0104** |
+| `gaussian_copula_shrink010` − `independent_marginals` | +0.067 | 24/30 | **0.0015** | **0.0040** |
+| `gaussian_copula_shrink010` − `gaussian_copula` | +0.010 | 17/30 | 0.598 | 0.123 |
+| `ctgan_small` − `ctgan` | +0.019 | 14/30 | 0.598 | **0.0040** |
+
+Correlation and divergence comparisons: all six win or lose 30 of 30 splits, Holm-adjusted p below 10⁻⁸. Holdout sizes 21 to 40 rows with 5 to 14 deaths; no degenerate label draws.
+
 ## 1. Four of six utility comparisons now survive
 
 Paired Wilcoxon over splits, mean of the two classifiers (the report's TSTR metric), Holm-corrected within the six-test family:
@@ -71,10 +86,10 @@ CTGAN being worse than the no-dependence floor on correlation in **30 of 30** sp
 |---|---|---|
 | Holdout size | 22–40 rows | 21–40 rows |
 | Holdout deaths | 5–10 | 5–14 |
-| Split share of TSTR variance | 20–62% | 21–61% |
+| Split share of TSTR variance (uncorrected, see below) | 20–62% | 21–61% |
 | Degenerate label draws | 0 | 0 |
 
-The variance decomposition is stable, so the item-2 finding that roughly half the utility spread is the split rather than the generator needs no revision. The widened death range (5–14 against the reported split's 6) makes the "reported split is not typical" point slightly stronger than before.
+The variance decomposition is stable between 10 and 30 splits. **Corrected (2026-10-24):** both rows above used the uncorrected decomposition; with the seed variance inside each split mean subtracted, the 30-split shares are 0% (CTGAN) to 62% (TVAE), see [`split_study_result.md`](split_study_result.md). The item-2 finding that roughly half the utility spread is the split rather than the generator needs no revision. The widened death range (5–14 against the reported split's 6) makes the "reported split is not typical" point slightly stronger than before.
 
 ## 6. A harness bug worth recording
 

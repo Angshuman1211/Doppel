@@ -87,8 +87,11 @@ def variance_split(df: pd.DataFrame, metric: str) -> dict:
     out = {}
     for arm, g in df.groupby("arm"):
         per_split = g.groupby("split_seed")[metric].mean()
-        between = per_split.var(ddof=1)
         within = g.groupby("split_seed")[metric].var(ddof=1).mean()
+        seeds_per_split = g.groupby("split_seed")[metric].count().mean()
+        # The variance of per-split means also contains within/k of seed noise (k seeds per split), so
+        # subtract it: one-way random-effects (method of moments) estimate of the split component.
+        between = max(per_split.var(ddof=1) - within / seeds_per_split, 0.0)
         total = between + within
         out[arm] = {"between_split_sd": float(np.sqrt(between)), "within_split_sd": float(np.sqrt(within)),
                     "split_share": float(between / total) if total else float("nan")}

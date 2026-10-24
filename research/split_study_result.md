@@ -1,4 +1,4 @@
-# Repeated Split Study — half the utility spread is the split, and one reported gain does not survive it (2026-10-22)
+# Repeated Split Study — the split adds up to 62% of the utility variance, and one reported gain does not survive it (2026-10-22, corrected 2026-10-24)
 
 > **Superseded in part (2026-10-24).** This study has since been rerun at **30 splits** (810 fits), and the paired-test table below is replaced by the one in [`scale_study_result.md`](scale_study_result.md): with three times the evidence, four of six utility comparisons become significant under Holm correction, and the three neural margins reported here shrink by a third to a half. The 10-split data is preserved at `research/output/split_study_10splits.csv`. What holds unchanged: the variance decomposition (split share 21–61% at 30 splits against 20–62% here), the "reported split is not typical" table, and the headline that the copula's shrinkage utility gain is zero — now at 17 wins of 30, p = 0.329.
 
@@ -41,9 +41,11 @@ Holdout size swings by nearly a factor of two because patients carry between 1 a
 | `ctgan_small` | 0.584 ± 0.158 | 0.499 ± 0.195 | 0.070 | 0.172 |
 | `ctgan` | 0.544 ± 0.151 | 0.496 ± 0.169 | 0.091 | 0.168 |
 
-## About half the utility variance is the split, not the generator
+## The split carries 0 to 62% of the utility variance, depending on the generator
 
-Between-split standard deviation against between-seed standard deviation within a split, for TSTR RF:
+> **Corrected (2026-10-24).** The first version took the variance of the per-split means as the split variance. Each per-split mean also contains a third of the seed variance (three seeds per split), so that overstated the split share, most for the arms with the noisiest seeds. `variance_split` now subtracts it (a one-way random-effects, method-of-moments estimate). The table below is the first version's, kept for comparison; the corrected shares, recomputed on the 30-split rerun, are in the next table.
+
+Between-split standard deviation against between-seed standard deviation within a split, for TSTR RF (first version, 10 splits, uncorrected):
 
 | Arm | Split sd | Seed sd | Share of variance from the split |
 |---|---|---|---|
@@ -54,7 +56,21 @@ Between-split standard deviation against between-seed standard deviation within 
 | `gaussian_copula_shrink010` | 0.092 | 0.094 | 49% |
 | `ctgan_small` | 0.083 | 0.164 | 20% |
 
-The benchmark reports ± over seeds only, which by this measure captures roughly half of the variation that actually exists for most arms.
+Corrected, on the 30-split rerun (Track 2's machine, 810 fits, 2026-10-24):
+
+| Arm | Split sd | Seed sd | Share of variance from the split |
+|---|---|---|---|
+| `tvae` | 0.081 | 0.064 | 62% |
+| `tabular_diffusion_reg` | 0.078 | 0.066 | 58% |
+| `tabular_diffusion` | 0.067 | 0.061 | 55% |
+| `gaussian_copula` | 0.094 | 0.109 | 43% |
+| `gaussian_copula_shrink010` | 0.077 | 0.093 | 41% |
+| `gaussian_copula_shrink025` | 0.077 | 0.095 | 40% |
+| `independent_marginals` | 0.073 | 0.115 | 29% |
+| `ctgan_small` | 0.040 | 0.133 | 8% |
+| `ctgan` | 0.000 | 0.151 | 0% |
+
+The split matters most for the neural arms that fit their training rows closely (55 to 62%) and least for CTGAN, whose utility is noise around chance whichever patients it sees. A ± over seeds alone therefore leaves out a large share of the real variation for most arms, but not "about half" uniformly.
 
 ## Paired tests across splits
 

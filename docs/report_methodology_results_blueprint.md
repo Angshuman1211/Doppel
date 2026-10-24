@@ -121,7 +121,7 @@ How to use this: each numbered item is one paragraph. The bullets are what that 
 
 **B5b. How much of this depends on one split.**
 - The benchmark fixes one 80/20 patient-level split and varies only seeds. Redrawing the split 10 times shows holdout size ranges **22 to 40 rows** and deaths **5 to 10**, against the reported 35 and 6.
-- Roughly **half the variance** in utility comes from the split rather than the generator (split share 20% to 62% by arm), so a ± over seeds understates the real spread.
+- A large share of the variance in utility comes from the split rather than the generator (split share **0% to 62%** by arm, highest for the neural arms that copy; corrected 2026-10-24), so a ± over seeds understates the real spread.
 - Paired across splits, the structural results hold and get stronger: the copula beats the default and the floor on correlation in **10 of 10** splits (p = 0.002), CTGAN is worse than the floor on correlation in **10 of 10**, and the copying arms beat the tuned copula on utility in 9 and 10 splits.
 - One reported gain does not survive, and saying so is the honest version of this section (see B3's note).
 

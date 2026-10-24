@@ -38,7 +38,7 @@ Near-copy rate, mean of 2 seeds. Real unseen rows score about 0.05 by constructi
 
 **This is two different failure modes, not one.**
 
-**Diffusion memorizes because the cohort is small, and stops when it isn't.** Its near-copy rate falls by two orders of magnitude, 0.723 to 0.004, and crosses the 0.10 guard between 250 and 500 patients. The MIMIC result is consistent with this curve: 94 training rows there produced 0.804, against 0.723 at 67 rows and 0.334 at 140 rows here. The two datasets differ in columns (110 modeled on MIMIC, about 50 here) and in what a near copy means, so this is agreement in direction and rough size, not a prediction the curve makes for MIMIC. It does make it unlikely that the course project's headline was a quirk of MIMIC or of our implementation.
+**Diffusion memorizes because the cohort is small, and stops when it isn't.** Its near-copy rate falls by two orders of magnitude, 0.723 to 0.004, and crosses the 0.10 guard between 100 and 250 patients (140 and 362 training rows; corrected 2026-10-24, the first version said 250 to 500). The MIMIC result is consistent with this curve: 94 training rows there produced 0.804, against 0.723 at 67 rows and 0.334 at 140 rows here. The two datasets differ in columns (110 modeled on MIMIC, about 50 here) and in what a near copy means, so this is agreement in direction and rough size, not a prediction the curve makes for MIMIC. It does make it unlikely that the course project's headline was a quirk of MIMIC or of our implementation.
 
 **TVAE memorizes at every size.** It starts at 0.699 and is still at 0.374 with 7,145 training rows, having not crossed the guard at any point, and it does not decline monotonically. Its utility is also undefined at three of the seven sizes because mode collapse dropped the minority class from the synthetic data entirely. For TVAE the problem is the model, not the data budget, which is the opposite diagnosis to diffusion and was invisible at n = 94 where both simply looked like "memorizes".
 
@@ -52,7 +52,7 @@ Correlation difference, lower is better, against the no-dependence floor:
 | 500 | 0.043 | 0.117 | 0.117 |
 | 5,000 | **0.033** | 0.097 | 0.100 |
 
-**CTGAN never beats the floor**, at any size up to 7,145 rows: 0.097 against 0.100 at the largest. The course finding that it learns no relationships between columns is not a small-data artifact. The copula's advantage, by contrast, widens as data grows, from roughly 2.5× the floor's quality at 50 patients to 3× at 5,000.
+**CTGAN stays at the floor's level at every size**, within 0.004 of it up to 7,145 rows (0.117 against 0.117 at 500 patients, 0.097 against 0.100 at 5,000; corrected 2026-10-24, the first version said it never beats the floor, but at 5,000 it is 0.003 below). The course finding that it learns no relationships between columns is not a small-data artifact. The copula's advantage, by contrast, widens as data grows, from roughly 2.5× the floor's quality at 50 patients to 3× at 5,000.
 
 One nuance in the other direction: diffusion's DCR ratio climbs past 1 at large n, reaching 1.35 at 5,000 patients, meaning its rows end up *further* from the training data than real unseen rows are. With the step count fixed at 3,000 while the data grows, the same configuration moves from memorizing to underfitting. The sweep varies the data, not the capacity, so "capacity relative to cohort size" is only half-measured here; varying both is the obvious next experiment.
 

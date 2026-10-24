@@ -48,3 +48,7 @@ Presentation_Files/
 # Research extension: regenerated outputs and fetched third-party data
 research/output/
 research/data/
+
+# Office files belong in Presentation_Files/ (ignored), never at the repo root
+/*.pptx
+/*.docx

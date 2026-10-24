@@ -24,6 +24,7 @@ All of them take `--workers` and write incrementally where a run is long. Times 
 python -m research.size_sweep  --sizes 50 100 250 500 1000 2500 5000 --seeds 2   # 70 fits
 python -m research.split_study --splits 30 --seeds 3                             # 810 fits, ~53 min
 python -m research.domias_attack --seeds 10                                      # 60 runs, 96 s
+python -m research.domias_attack --seeds 10 --n-synth 47                         # matched to the shadow attack, 206 s
 python -m research.dp_study                                                      # DP arms at two budgets
 python -m research.stats_report                                                   # 180 fits, 882 s
 python -m research.stats_report --from-cache                                      # re-aggregate, no refitting
@@ -40,5 +41,6 @@ Short version; each result doc has the evidence and the caveats.
 - **Killed**: the copula's utility gain from lower shrinkage (item 2 — exactly zero across splits, a single-split artefact).
 - **Scoped**: "utility rewards memorization" holds at n = 94 and fails at n = 1,446 (items 1 and 6). Diffusion's memorization is a cohort-size effect; TVAE's is a model property.
 - **Weakened**: CTGAN's tuning gain is not significant on the report's utility metric, and no utility margin should be quoted as a number — it moves by 23× across prediction tasks (item 6) and by a third to a half as splits are added (item 7).
-- **Strengthened**: the fidelity and correlation orderings win 30 splits of 30 (item 7); the tuned copula turns out to be at the *measurement floor* of this cohort (item 5); the utility ordering does survive correction once there are enough splits to test it (item 7); and the reported leakage figures are conservative, because a simpler release-only attacker beats the shadow pipeline on every arm (item 3).
+- **Strengthened**: the fidelity and correlation orderings win 30 splits of 30 (item 7); the tuned copula turns out to be at the *measurement floor* of this cohort (item 5); the utility ordering does survive correction once there are enough splits to test it (item 7); and a release-only attacker, run at the same release size as the shadow attack, gives about the same leakage figures as the paper (item 3).
+- **Corrected after review**: item 3 first compared a 500-row release against the shadow attack's 47-row releases and concluded the paper's leakage figures were conservative. At matched size the difference is small and mixed, so that claim was withdrawn ([item 3 doc](domias_attack_result.md)).
 - **Corrected mid-flight**: item 5 concluded that no utility comparison was established, from 10 splits. Item 7 showed that was a power limit — four of six survive at 30. The [item 5 doc](stats_report_result.md) keeps the old column deliberately, because the contrast is the lesson.

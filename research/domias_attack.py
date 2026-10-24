@@ -21,7 +21,12 @@ Threat model, deliberately weaker than the benchmark's shadow attack:
 
 The distance attack is run on the same split, so the two are directly comparable.
 
-    python -m research.domias_attack --seeds 10 --workers 6
+The release size is a free parameter and it changes the distance attack: the more synthetic rows, the
+closer a member's nearest neighbour. The benchmark's shadow attack releases as many rows as each shadow
+was fitted on (47), so `--n-synth 47` is the like-for-like comparison with Table I of the paper.
+
+    python -m research.domias_attack --seeds 10 --workers 6                # 500-row release
+    python -m research.domias_attack --seeds 10 --workers 6 --n-synth 47   # matches the shadow attack
 """
 
 import argparse
@@ -106,7 +111,7 @@ def _quiet():
     warnings.filterwarnings("ignore")
 
 
-def _run(arm, seed):
+def _run(arm, seed, n_synth=N_SYNTH):
     real = S.load_real()
     train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT].reset_index(drop=True)
     reference = S.clean_holdout(real)
@@ -119,10 +124,10 @@ def _run(arm, seed):
 
     generator, params = resolve(arm)
     start = time.time()
-    _, _, synth = synthesize(members, generator, seed, params, n_rows=N_SYNTH)
+    _, _, synth = synthesize(members, generator, seed, params, n_rows=n_synth)
     codec = FrameCodec(min_count=5).fit(train)
 
-    row = {"arm": arm, "seed": seed, "n_members": len(members), "n_nonmembers": int((is_member == 0).sum()),
+    row = {"arm": arm, "seed": seed, "n_synth": n_synth, "n_members": len(members), "n_nonmembers": int((is_member == 0).sum()),
            "seconds": time.time() - start}
     for name, scores in [("domias", density_scores(train, synth, reference, codec, seed)),
                          ("distance", distance_scores(train, synth, codec))]:
@@ -136,6 +141,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--seeds", type=int, default=10)
     parser.add_argument("--arms", nargs="+", default=ARMS)
+    parser.add_argument("--n-synth", type=int, default=N_SYNTH,
+                        help="synthetic rows released; 47 matches the benchmark's shadow attack")
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
     args = parser.parse_args(argv)
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
@@ -146,14 +153,15 @@ def main(argv=None):
     rows, start = [], time.time()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     with ProcessPoolExecutor(max_workers=args.workers, initializer=_quiet) as pool:
-        futures = [pool.submit(_run, *t) for t in tasks]
+        futures = [pool.submit(_run, *t, args.n_synth) for t in tasks]
         for i, fut in enumerate(as_completed(futures), 1):
             rows.append(fut.result())
             if i % 10 == 0 or i == len(tasks):
                 print(f"[{i:3d}/{len(tasks)}] {time.time() - start:5.0f}s", flush=True)
 
     df = pd.DataFrame(rows).sort_values(["arm", "seed"], ignore_index=True)
-    df.to_csv(OUT_DIR / "domias_attack.csv", index=False)
+    stem = "domias_attack" if args.n_synth == N_SYNTH else f"domias_attack_n{args.n_synth}"
+    df.to_csv(OUT_DIR / f"{stem}.csv", index=False)
     summary = df.groupby("arm").agg(
         domias_auroc=("domias_auroc", "mean"), domias_sd=("domias_auroc", "std"),
         domias_tpr5=("domias_tpr5", "mean"),
@@ -162,8 +170,8 @@ def main(argv=None):
     summary["domias_minus_distance"] = summary.domias_auroc - summary.distance_auroc
     with pd.option_context("display.width", 220, "display.float_format", "{:.4f}".format):
         print("\n" + summary.to_string())
-    summary.to_csv(OUT_DIR / "domias_attack_summary.csv")
-    print(f"\nwrote {OUT_DIR}/domias_attack.csv and _summary.csv ({time.time() - start:.0f}s)")
+    summary.to_csv(OUT_DIR / f"{stem}_summary.csv")
+    print(f"\nwrote {OUT_DIR}/{stem}.csv and _summary.csv ({time.time() - start:.0f}s)")
     return 0
 
 

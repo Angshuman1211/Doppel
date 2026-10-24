@@ -1,16 +1,19 @@
-# Density-Based Attack — DOMIAS is weaker than distance here, and a simpler attacker beats the shadow pipeline (2026-10-22)
+# Density-Based Attack — DOMIAS is weaker than distance here, and a release-only attacker matches the shadow pipeline once the release size is matched (2026-10-22, corrected 2026-10-24)
 
 Post-course extension work (improvement plan item 3; limitations 3 and 4 of the membership survey; §VII of the paper, "no density-based or release-only attacker was run"). 6 arms × 10 seeds, 96 s.
 
 ```bash
-python -m research.domias_attack --seeds 10 --workers 6
+python -m research.domias_attack --seeds 10 --workers 6                 # 500-row release, 96 s
+python -m research.domias_attack --seeds 10 --workers 6 --n-synth 47    # 47-row release, matches the shadow attack, 206 s
 ```
+
+> **Correction (2026-10-24).** The first version of this document compared a 500-row release against the benchmark's shadow attack, which releases 47 rows per shadow (`n_samples=len(member_df)` in `evaluation/membership_inference.py`). A larger release gives each member a closer nearest neighbour, so that comparison favoured the release-only attack for a reason unrelated to the attack procedure. The script now takes `--n-synth`, and the run at 47 rows replaces the old §2. The headline "a simpler attacker beats the shadow pipeline on every arm" does not hold at matched size and has been withdrawn.
 
 ---
 
 ## Setup
 
-The generator is fitted on a random 47 of the 94 training admissions, so the other 47 are non-members **from the same distribution** and the holdout's distribution shift never enters. The attacker sees only the released synthetic table (500 rows) and a reference sample, which is the clean holdout with subject 41976 removed. No shadow generators, no retraining, no generator access.
+The generator is fitted on a random 47 of the 94 training admissions, so the other 47 are non-members **from the same distribution** and the holdout's distribution shift never enters. The attacker sees only the released synthetic table (500 rows, or 47 to match the benchmark) and a reference sample, which is the clean holdout with subject 41976 removed. No shadow generators, no retraining, no generator access.
 
 Two scores are computed on the identical split, so they are directly comparable:
 
@@ -19,7 +22,7 @@ Two scores are computed on the identical split, so they are directly comparable:
 
 With 47 non-members the smallest non-zero false-positive rate is about 2%, so TPR is reported at 5% rather than 1%.
 
-## Results, mean over 10 seeds
+## Results with a 500-row release, mean over 10 seeds
 
 | Arm | DOMIAS AUROC | DOMIAS TPR@5% | Distance AUROC | Distance TPR@5% | Difference |
 |---|---|---|---|---|---|
@@ -34,35 +37,49 @@ With 47 non-members the smallest non-zero false-positive rate is about 2%, so TP
 
 ## 1. The density attack is weaker on every arm, and it clears a known copier
 
-DOMIAS loses to the distance attack on all six settings, by 0.045 to 0.339 AUROC. The mechanism is the one the membership survey predicted before it was run: the reference density is estimated from 20 records in a 5-dimensional projection, which is not enough for the ratio to mean much. This is a negative result about **this cohort size**, not about DOMIAS, which was designed for settings with a usable reference sample.
+DOMIAS loses to the distance attack on all six settings at both release sizes, by 0.045 to 0.339 AUROC at 500 rows and 0.047 to 0.223 at 47. The mechanism is the one the membership survey predicted before it was run: the reference density is estimated from 20 records in a 5-dimensional projection, which is not enough for the ratio to mean much. This is a negative result about **this cohort size**, not about DOMIAS, which was designed for settings with a usable reference sample.
 
-The more useful part is which arm it misses. **TVAE, the known copier, scores 0.519 under DOMIAS, essentially chance** — the lowest of all six arms, below even the independent floor. A density-ratio attack therefore joins the 4-column attack as a second attack that would have cleared a generator we know copies 52 to 71% of its rows. That is direct evidence for the paper's existing rule of reporting the worst of several attacks rather than any single one, and it is worth more than a positive DOMIAS result would have been.
+The more useful part is which arm it misses. With a 500-row release **TVAE, the known copier, scores 0.519 under DOMIAS, essentially chance** — the lowest of all six arms, below even the independent floor. With a 47-row release it scores 0.553, level with the independent floor (0.545) and CTGAN-small (0.550), so DOMIAS still cannot separate it from settings that do not copy. A density-ratio attack therefore joins the 4-column attack as a second attack that would have cleared a generator we know copies 52 to 71% of its rows. That is direct evidence for the paper's existing rule of reporting the worst of several attacks rather than any single one, and it is worth more than a positive DOMIAS result would have been.
 
-## 2. A simpler attacker beats the benchmark's shadow pipeline on every arm
+## Results with a 47-row release, mean over 10 seeds
 
-Comparing the direct release-only distance attack against the shadow-model numbers in Table I of the paper, on the same 47/47 member split:
+| Arm | DOMIAS AUROC | DOMIAS TPR@5% | Distance AUROC | Distance TPR@5% | Difference |
+|---|---|---|---|---|---|
+| `tabular_diffusion` | 0.587 ± 0.054 | 0.121 | **0.810 ± 0.039** | **0.477** | −0.223 |
+| `tvae` | 0.553 ± 0.074 | 0.111 | 0.662 ± 0.036 | 0.172 | −0.109 |
+| `tabular_diffusion_reg` | 0.585 ± 0.062 | 0.096 | 0.670 ± 0.028 | 0.268 | −0.086 |
+| `gaussian_copula_shrink010` | 0.582 ± 0.056 | 0.149 | 0.654 ± 0.050 | 0.170 | −0.072 |
+| `ctgan_small` | 0.550 ± 0.057 | 0.083 | 0.597 ± 0.052 | 0.119 | −0.047 |
+| `independent_marginals` | 0.545 ± 0.041 | 0.051 | 0.596 ± 0.056 | 0.109 | −0.051 |
 
-| Arm | Shadow-model Gower AUROC (paper) | Direct release-only AUROC (here) |
-|---|---|---|
-| `tabular_diffusion` | 0.787 | **0.976** |
-| `tvae` | 0.649 | **0.749** |
-| `tabular_diffusion_reg` | 0.704 | 0.748 |
-| `gaussian_copula_shrink010` | 0.629 | 0.678 |
-| `independent_marginals` | 0.551 | 0.601 |
-| `ctgan_small` | 0.543 | 0.594 |
+The release size moves the distance attack a long way: the 3000-step diffusion model falls from 0.976 to 0.810 and TVAE from 0.749 to 0.662. DOMIAS moves much less.
 
-Both designs fit the generator on 47 admissions and use the other 47 as non-members, so the regime is the same. The difference is the attack procedure: the benchmark trains a logistic-regression attack model on distances pooled from seven shadow worlds and applies it to the eighth, while this scores distances **within the single release under attack**.
+## 2. At matched release size, the release-only attack is about level with the shadow pipeline (corrected)
 
-The likely reason the simpler attack wins is that distances are not calibrated across shadow worlds. Each shadow fits a different generator on different rows, so a decision threshold learned on seven worlds transfers poorly to the eighth, whereas ranking records inside one release needs no cross-world threshold at all. That is a hypothesis consistent with the pattern, not something this experiment isolates; a targeted test would compare pooled-threshold against per-world-ranked scoring on the same shadow outputs.
+Comparing the direct release-only distance attack against the shadow-model Gower numbers in Table I of the paper. Both fit the generator on 47 admissions, use the other 47 as non-members and release 47 synthetic rows:
 
-For the diffusion model the practical reading is stark: at a 5% false-positive budget, a release-only attacker with no shadow models identifies **87.5% of the records the generator was trained on**, against 47.5% for the shadow attack at the same budget in the paper.
+| Arm | Shadow-model Gower AUROC (paper) | Release-only, 47 rows | Release-only, 500 rows (superseded) |
+|---|---|---|---|
+| `tabular_diffusion` | 0.787 | 0.810 | 0.976 |
+| `tabular_diffusion_reg` | 0.704 | **0.670** | 0.748 |
+| `tvae` | 0.649 | 0.662 | 0.749 |
+| `gaussian_copula_shrink010` | 0.629 | 0.654 | 0.678 |
+| `independent_marginals` | 0.551 | 0.596 | 0.601 |
+| `ctgan_small` | 0.543 | 0.597 | 0.594 |
+
+At matched size the two attacks are close. The release-only attack is higher on five arms by 0.013 to 0.054 and lower on the regularised diffusion model by 0.034, and the order of the three leaking arms is not preserved (it puts TVAE level with the regularised model). At a 5% false-positive budget it finds 47.7% of the 3000-step diffusion model's training records, against 47.5% for the shadow attack in the paper: the same number.
+
+So the earlier claim that a simpler attacker beats the shadow pipeline on every arm was mostly the release size. What remains is a small, mixed difference, and two other differences between the designs could account for it: this attack ranks distances within one release, while the shadow attack applies a threshold learned on seven other shadow worlds; and this attack's Gower distance is computed on the codec's columns rather than the benchmark's 53 features. Neither has been isolated.
+
+The 500-row run is still informative on its own terms: a release ten times larger than the training set makes a copying generator far easier to attack (0.976 for the 3000-step diffusion model, 87.5% of members found at 5% FPR). Release size is a lever the data holder controls, and that is worth stating, but it is a statement about release size, not about the attack.
 
 ## What this changes
 
 - §VII's "no density-based or release-only attacker was run" can be removed; both now exist.
-- The paper's headline leakage figures are **conservative**. A weaker attacker than the one assumed does better, which strengthens rather than softens the argument.
-- "Use the worst of several attacks" gains a second supporting case, since DOMIAS also clears TVAE.
+- The paper's leakage figures are **not contradicted** by a release-only attacker: at matched release size it gives about the same numbers (0.810 against 0.787 for the 3000-step diffusion model, 47.7% against 47.5% of members at 5% FPR). Do not claim the shadow figures are conservative; that rested on the 500-row comparison.
+- "Use the worst of several attacks" gains a second supporting case, since DOMIAS cannot separate TVAE from non-copying settings at either release size.
+- Release size matters: the same generator is far more exposed when it releases more rows than it was trained on.
 
 ## Limits
 
-One dataset, 10 seeds, a 47-row fit rather than the 94-row release the main benchmark reports, and a single PCA-KDE configuration for DOMIAS with no bandwidth or dimension tuning. A fairer DOMIAS would use a larger reference sample, which this cohort cannot supply, and a normalizing-flow density of the kind the original paper uses.
+One dataset, 10 seeds, a 47-row fit rather than the 94-row fit the main benchmark's released table comes from, a Gower distance on the codec's columns rather than the benchmark's feature set, and a single PCA-KDE configuration for DOMIAS with no bandwidth or dimension tuning. A fairer DOMIAS would use a larger reference sample, which this cohort cannot supply, and a normalizing-flow density of the kind the original paper uses.

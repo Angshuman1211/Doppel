@@ -258,12 +258,13 @@ class DPMarginals(Generator):
         """Independent uniforms per column; the copula subclass replaces some with correlated ones."""
         return {c: rng.uniform(size=n) for c in self.domain}
 
-    def sample_table(self, n: int, rng: np.random.Generator) -> pd.DataFrame:
+    def _sample_values(self, n, rng):
+        """Column values on the public domain; subclasses change how columns depend on each other."""
         u = self._uniforms(n, rng)
-        values = {}
-        for c, h in self.histograms.items():
-            k = h.cell(u[c])
-            values[c] = h.value(k, u[c], rng)
+        return {c: h.value(h.cell(u[c]), u[c], rng) for c, h in self.histograms.items()}
+
+    def sample_table(self, n: int, rng: np.random.Generator) -> pd.DataFrame:
+        values = self._sample_values(n, rng)
 
         out = {S.ID_COLS[0]: S.SYNTH_SUBJECT_BASE + np.arange(n), S.ID_COLS[1]: S.SYNTH_HADM_BASE + np.arange(n),
                S.SPLIT_COL: np.full(n, S.SYNTH_SPLIT, dtype=object)}
@@ -373,6 +374,59 @@ class DPGaussianCopula(DPMarginals):
             out |= {"sigma_copula": round(self.sigma_copula, 3),
                     "copula_shrinkage": round(float(self.copula_shrinkage), 4)}
         return out
+
+
+class DPBayesNet(DPMarginals):
+    """A differentially private Bayesian network with a public structure: in-hospital death is the root
+    and every other column is its child, the degree-1 network of PrivBayes (Zhang et al., 2017) with the
+    structure fixed from the prediction task instead of selected from the data.
+
+    Measured: the death histogram and, for every other column, its joint histogram with death. Each record
+    adds one count to each of these tables, so the L2 sensitivity of the whole set is sqrt(2 * columns),
+    the same as for the one-way marginals: conditioning on death costs no extra budget. Each column's
+    marginal is recovered by summing its noisy joint over death, which is post-processing.
+    """
+
+    name = "dp_bayesnet"
+    root = "hospital_expire_flag"
+
+    def _measure_marginals(self, train, rho, rng):
+        self.cells = {c: self._cells(train, c, *self.domain[c]) for c in self.domain}
+        sigma = gaussian_sigma(np.sqrt(2.0 * len(self.domain)), rho)
+        y = self.cells[self.root]
+        n_classes = self._n_cells(*self.domain[self.root])
+        self.histograms, self.conditionals = {}, {}
+        for c, (kind, bins) in self.domain.items():
+            m = self._n_cells(kind, bins)
+            if c == self.root:
+                counts = np.bincount(y, minlength=m).astype(float)
+                self.histograms[c] = _Histogram(kind, bins, counts + rng.normal(0.0, sigma, m))
+                continue
+            joint = np.zeros((n_classes, m))
+            np.add.at(joint, (y, self.cells[c]), 1.0)
+            noisy = joint + rng.normal(0.0, sigma, joint.shape)
+            self.conditionals[c] = [_Histogram(kind, bins, noisy[k]) for k in range(n_classes)]
+            self.histograms[c] = _Histogram(kind, bins, noisy.sum(axis=0))
+        self.sigma_marginals = sigma
+
+    def _sample_values(self, n, rng):
+        root = self.histograms[self.root]
+        u_root = rng.uniform(size=n)
+        y = root.cell(u_root)
+        values = {self.root: root.value(y, u_root, rng)}
+        for c, per_class in self.conditionals.items():
+            out = np.empty(n, dtype=object if per_class[0].kind == "level" else float)
+            for k, h in enumerate(per_class):
+                rows = np.flatnonzero(y == k)
+                if len(rows):
+                    u = rng.uniform(size=len(rows))
+                    out[rows] = h.value(h.cell(u), u, rng)
+            values[c] = out
+        return values
+
+    def hyperparams(self):
+        return super().hyperparams() | {"mechanism": "gaussian_bayes_net_public_structure_zcdp",
+                                        "network": f"{self.root} -> every other column"}
 
 
 def _nearest_correlation(matrix: np.ndarray) -> np.ndarray:

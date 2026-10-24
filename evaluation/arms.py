@@ -19,6 +19,8 @@ ARMS = {
     "dp_marginals_eps8": ("dp_marginals", {"epsilon": 8.0}),
     "dp_copula_eps1": ("dp_copula", {"epsilon": 1.0}),
     "dp_copula_eps8": ("dp_copula", {"epsilon": 8.0}),
+    "dp_bayesnet_eps1": ("dp_bayesnet", {"epsilon": 1.0}),
+    "dp_bayesnet_eps8": ("dp_bayesnet", {"epsilon": 8.0}),
 }
 
 # The nine arms the course benchmark reports, so "all arms" never silently means the extension set.

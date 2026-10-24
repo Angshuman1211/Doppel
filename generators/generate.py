@@ -54,6 +54,7 @@ GENERATORS = _LazyRegistry({
     "tabular_diffusion": "diffusion:TabularDiffusion",
     "dp_marginals": "dp_copula:DPMarginals",
     "dp_copula": "dp_copula:DPGaussianCopula",
+    "dp_bayesnet": "dp_copula:DPBayesNet",
 })
 
 

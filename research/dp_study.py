@@ -32,6 +32,7 @@ from generators.generate import synthesize  # noqa: E402
 
 OUT_DIR = ROOT / "research" / "output"
 ARMS = ["dp_marginals_eps1", "dp_marginals_eps8", "dp_copula_eps1", "dp_copula_eps8",
+        "dp_bayesnet_eps1", "dp_bayesnet_eps8",
         "gaussian_copula_shrink010", "independent_marginals"]
 TARGET = "hospital_expire_flag"
 N_SHADOW = 8

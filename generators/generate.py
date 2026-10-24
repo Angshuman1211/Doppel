@@ -65,6 +65,12 @@ def synthesize(train: pd.DataFrame, generator: str, seed: int, params: dict | No
                n_rows: int | None = None, min_count: int = 5):
     """Fit on `train`, sample, decode. Returns (codec, fitted model, synthetic frame in the real CSV's schema)."""
     fit_rng, sample_rng, decode_rng = (np.random.default_rng(s) for s in np.random.SeedSequence(seed).spawn(3))
+    cls = load_generator(generator)
+    if getattr(cls, "table_level", False):
+        # Differentially private arms never touch FrameCodec: it is fitted on the training rows, so
+        # anything decoded through it would leak them. They work on the raw table against a public domain.
+        model = cls(**(params or {})).fit_table(train, fit_rng)
+        return None, model, model.sample_table(n_rows or len(train), sample_rng)
     codec = FrameCodec(min_count=min_count).fit(train)
     model = load_generator(generator)(**(params or {})).fit(codec.encode(train), codec.spec, fit_rng)
     synth = codec.decode(model.sample(n_rows or len(train), sample_rng), decode_rng)
@@ -107,7 +113,7 @@ def run(generator: str, seed: int, params: dict | None = None, n_rows: int | Non
         "hyperparams": model.hyperparams(),
         "train_rows": len(train),
         "train_csv_sha256": train_sha,
-        "codec": codec.describe(),
+        "codec": codec.describe() if codec is not None else "none (table-level generator)",
         "git_commit": _git_commit(),
         "created_utc": created.isoformat(timespec="seconds"),
     }

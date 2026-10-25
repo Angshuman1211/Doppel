@@ -7,6 +7,9 @@ python -m research.learned_attack --seeds 3 --workers 4                    # 21 
 python -m research.learned_attack --seeds 3 --workers 4 --out learned_attack_dp \
     --arms dp_marginals_eps1 dp_marginals_eps8 dp_copula_eps1 dp_copula_eps8 dp_bayesnet_eps1 dp_bayesnet_eps8   # 56 s
 python -m research.learned_attack_ablation                                  # refits attack models only
+# added after review, the four remaining non-private settings (LOKY_MAX_CPU_COUNT=1, see below)
+python -m research.learned_attack --seeds 3 --workers 6 --out learned_attack_copulas --arms gaussian_copula gaussian_copula_shrink025
+python -m research.learned_attack --seeds 3 --workers 5 --out learned_attack_ctgan --arms ctgan ctgan_small
 ```
 
 ---
@@ -35,6 +38,10 @@ Mean of 3 seeds. Seed standard deviation of the learned AUROCs: 0.003 to 0.015 f
 | TVAE | 0.684 | 0.815 | **0.848** | 0.835 | 0.048 | 0.247 | 0.259 |
 | Diffusion (3000 steps) | 0.796 | 0.862 | **0.872** | 0.833 | 0.415 | **0.541** | **0.495** |
 | Diffusion-reg | 0.700 | 0.764 | **0.793** | 0.769 | 0.239 | 0.276 | 0.254 |
+| Copula (Ledoit-Wolf) | 0.646 | 0.705 | **0.803** | 0.728 | 0.022 | 0.123 | 0.053 |
+| Copula λ=0.25 | 0.656 | 0.746 | **0.833** | 0.768 | 0.028 | 0.151 | 0.067 |
+| CTGAN | 0.626 | 0.668 | **0.737** | 0.635 | 0.020 | 0.079 | 0.025 |
+| CTGAN-small | 0.635 | 0.672 | **0.764** | 0.678 | 0.022 | 0.094 | 0.032 |
 | DP-marginals ε=1 / ε=8 | 0.512 / 0.532 | 0.504 / 0.536 | 0.491 / 0.517 | 0.492 / 0.503 | ≤ 0.016 | ≤ 0.011 | ≤ 0.014 |
 | DP-copula ε=1 / ε=8 | 0.515 / 0.525 | 0.510 / 0.535 | 0.506 / 0.528 | 0.504 / 0.509 | ≤ 0.012 | ≤ 0.016 | ≤ 0.014 |
 | DP-Bayes ε=1 / ε=8 | 0.521 / 0.534 | 0.525 / 0.532 | 0.504 / 0.510 | 0.505 / 0.524 | ≤ 0.012 | ≤ 0.015 | ≤ 0.017 |
@@ -65,6 +72,10 @@ Where the boosted model's gain comes from (`learned_attack_ablation.csv`, same s
 
 **6. The gain is the attack, not the shadow count.** With the benchmark's 8 shadows the boosted model still beats the distance attack by 0.03 to 0.13, and the distance attack gains at most 0.010 from 32 shadows. The per-record calibration needs no more shadows than the benchmark already fits.
 
+**7. All nine non-private settings are lifted, and the copulas trade privacy for structure smoothly.** The four settings added after review follow the same pattern: gradient boosting adds 0.111 to 0.177 AUROC over the distance attack. Across the three copulas the boosted score rises as shrinkage falls, 0.803 (λ = 0.668), 0.833 (λ = 0.25) and 0.844 (λ = 0.10), with TPR at 1% FPR 12.3%, 15.1% and 19.3%: the correlation structure the paper credits to low shrinkage is paid for in exposure. CTGAN is the least exposed non-private setting under every learned attack (0.737, 7.9%), below even the independent setting, consistent with it reproducing neither exact training values nor dependence between columns.
+
+Running CTGAN in parallel workers needs `LOKY_MAX_CPU_COUNT=1`: its `DataTransformer` calls joblib `Parallel(n_jobs=-1)`, which otherwise starts one process per core inside every worker; the first attempt exhausted the Windows paging file. The script now sets it.
+
 ## What this changes for the paper
 
 - Withdraw "the checked worst-case distance attack bounds what we found". State that the distance attack gives a lower bound and report the learned attacks beside it.
@@ -76,4 +87,4 @@ Where the boosted model's gain comes from (`learned_attack_ablation.csv`, same s
 
 ## Limits
 
-Three seeds, the reported split only, five non-private settings and six DP settings (CTGAN, the small CTGAN and the default and λ=0.25 copulas were not run). One boosted-model configuration, not tuned. LiRA uses a shared variance and only the nearest distance per metric. Zhang et al.'s contrastive-learning attack was not run, so stronger attacks than these may exist; the scores here are still lower bounds. TPR at 1% FPR rests on about 15 false positives per pooled curve.
+Three seeds on the reported split for all nine non-private settings and the six DP settings; the 10-split rerun covers five settings and the two controls ([`learned_attack_tests.py`](learned_attack_tests.py)). One boosted-model configuration, not tuned. LiRA uses a shared variance and only the nearest distance per metric. Zhang et al.'s contrastive-learning attack was not run, so stronger attacks than these may exist; the scores here are still lower bounds. TPR at 1% FPR rests on about 15 false positives per pooled curve.

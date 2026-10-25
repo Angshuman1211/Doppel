@@ -46,7 +46,7 @@ def ablate(X, member):
 def main():
     warnings.filterwarnings("ignore")
     rows = []
-    for path in sorted(FEATURE_DIR.glob("*.npz")):
+    for path in sorted(p for p in FEATURE_DIR.glob("*.npz") if not p.name.startswith("split")):
         arm, seed = path.stem.rsplit("_", 1)
         z = np.load(path)
         rows.append({"arm": arm, "seed": int(seed), **ablate(z["X"], z["member"])})

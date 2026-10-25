@@ -16,6 +16,7 @@ logistic regression on the 18 features, so that the gain from features and from 
 apart. Every attack is scored leave-one-shadow-out: fitted on 31 shadows and scored on the 32nd, in turn.
 
     python -m research.learned_attack --seeds 3 --workers 4
+    python -m research.learned_attack --splits 10 --arms independent_marginals gaussian_copula_shrink010 tvae         tabular_diffusion tabular_diffusion_reg --out learned_attack_splits
 """
 
 import argparse
@@ -57,7 +58,7 @@ def _distance_matrices(train, synth, scaler):
             "codes": codes_distances(train, synth)}
 
 
-def shadow_features(arm, seed, n_shadow=N_SHADOW):
+def shadow_features(arm, seed, n_shadow=N_SHADOW, split_seed=None):
     """Per shadow and record: 18 features, the three log nearest-neighbour distances and membership."""
     from sklearn.preprocessing import StandardScaler
 
@@ -66,8 +67,12 @@ def shadow_features(arm, seed, n_shadow=N_SHADOW):
     from evaluation.mia_calibration import build_generator
 
     real = S.load_real()
-    train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT].reset_index(drop=True)
-    holdout = real[real[S.SPLIT_COL] != S.TRAIN_SPLIT].reset_index(drop=True)
+    if split_seed is None:
+        train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT].reset_index(drop=True)
+        holdout = real[real[S.SPLIT_COL] != S.TRAIN_SPLIT].reset_index(drop=True)
+    else:
+        from research.split_study import patient_split
+        train, holdout = (d.reset_index(drop=True) for d in patient_split(real, split_seed))
     generate = (build_generator(arm, holdout) if arm in ("exact_copy", "disjoint_real")
                 else real_generator_fn(arm, disk_cache=False))
     scaler = StandardScaler().fit(train[NUMERIC_COLS])
@@ -143,17 +148,18 @@ def lira(logd, member):
     return _score(labels, scores)
 
 
-def _run(arm, seed):
+def _run(arm, seed, split_seed=None):
     from sklearn.ensemble import HistGradientBoostingClassifier
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
     start = time.time()
-    X, logd, member = shadow_features(arm, seed)
+    X, logd, member = shadow_features(arm, seed, split_seed=split_seed)
     FEATURE_DIR.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(FEATURE_DIR / f"{arm}_{seed}.npz", X=X, logd=logd, member=member)
-    row = {"arm": arm, "seed": seed, "n_shadow": X.shape[0]}
+    tag = f"{arm}_{seed}" if split_seed is None else f"split{split_seed}_{arm}_{seed}"
+    np.savez_compressed(FEATURE_DIR / f"{tag}.npz", X=X, logd=logd, member=member)
+    row = {"arm": arm, "seed": seed, "split_seed": split_seed, "n_train": X.shape[1], "n_shadow": X.shape[0]}
     for i, name in enumerate(DISTANCES):
         # the benchmark's attack: logistic regression on minus the nearest distance (sign is irrelevant to LR)
         row[f"dist_{name}"], row[f"dist_{name}_tpr1"] = leave_one_shadow_out(X[..., [6 * i]], member, LogisticRegression)
@@ -174,12 +180,18 @@ def main(argv=None):
     parser.add_argument("--seeds", type=int, default=3)
     parser.add_argument("--arms", nargs="+", default=ARMS)
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--splits", type=int, default=0,
+                        help="run on this many redrawn patient splits (seeds 1000+k), one generator seed each")
     parser.add_argument("--out", default="learned_attack")
     args = parser.parse_args(argv)
-    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+    # ctgan's DataTransformer runs joblib Parallel(n_jobs=-1), which would start a process per core in every worker
+    for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "LOKY_MAX_CPU_COUNT"):
         os.environ[var] = "1"
 
-    tasks = [(a, 42 + s) for a in args.arms for s in range(args.seeds)]
+    if args.splits:
+        tasks = [(a, 42, 1000 + k) for a in args.arms for k in range(args.splits)]
+    else:
+        tasks = [(a, 42 + s) for a in args.arms for s in range(args.seeds)]
     cost = {"tabular_diffusion": 10, "tabular_diffusion_reg": 4, "tvae": 2}
     tasks.sort(key=lambda t: -cost.get(t[0], 1))
     print(f"{len(tasks)} runs ({len(tasks) * N_SHADOW} shadow fits) on {args.workers} workers", flush=True)

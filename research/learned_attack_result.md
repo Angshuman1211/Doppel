@@ -76,6 +76,38 @@ Where the boosted model's gain comes from (`learned_attack_ablation.csv`, same s
 
 Running CTGAN in parallel workers needs `LOKY_MAX_CPU_COUNT=1`: its `DataTransformer` calls joblib `Parallel(n_jobs=-1)`, which otherwise starts one process per core inside every worker; the first attempt exhausted the Windows paging file. The script now sets it.
 
+## Across patient splits (added after review)
+
+```bash
+python -m research.learned_attack --splits 10 --workers 5 --out learned_attack_splits --arms exact_copy disjoint_real \
+    independent_marginals gaussian_copula_shrink010 tvae tabular_diffusion tabular_diffusion_reg   # 70 runs, 2,240 shadow fits, 5,896 s
+python -m research.learned_attack_tests
+```
+
+The same 32-shadow design on the 10 redrawn patient splits of [`split_attack.py`](split_attack.py) (split seeds 1000 to 1009, 89 to 107 training admissions, generator seed 42), with both controls on every split. Every pair of the five settings is compared with a paired Wilcoxon test over the splits, Holm-corrected as a family of ten per attack and metric; with 10 splits the smallest Holm-adjusted p is 0.020.
+
+Mean ± sd over 10 splits:
+
+| Setting | Distance (worst case) | Gradient boosting | Likelihood ratio | TPR at 1% FPR: distance / boosting / LR |
+|---|---|---|---|---|
+| Copy control | 1.000 | 1.000 | 1.000 | 1.000 / 1.000 / 1.000 |
+| Unseen-record control | 0.508 ± 0.011 | 0.506 ± 0.019 | 0.494 ± 0.016 | 0.008 / 0.007 / 0.007 |
+| Diffusion (3000 steps) | **0.797 ± 0.010** | **0.862 ± 0.013** | **0.827 ± 0.009** | **0.379 / 0.534 / 0.442** |
+| TVAE | 0.666 ± 0.015 | 0.835 ± 0.022 | 0.811 ± 0.022 | 0.071 / 0.253 / 0.191 |
+| Copula λ=0.10 | 0.640 ± 0.020 | 0.833 ± 0.029 | 0.769 ± 0.028 | 0.039 / 0.172 / 0.082 |
+| Diffusion-reg | 0.690 ± 0.015 | 0.780 ± 0.032 | 0.745 ± 0.026 | 0.172 / 0.266 / 0.219 |
+| Independent | 0.618 ± 0.026 | 0.768 ± 0.031 | 0.683 ± 0.024 | 0.019 / 0.097 / 0.037 |
+
+**The learned attacks beat the distance attack on every split.** For each of the five non-private settings, gradient boosting exceeds the worst-case distance attack on 10 of 10 splits (by 0.052 to 0.214; mean gain 0.065 for diffusion, 0.090 for regularised diffusion, 0.150 for the independent setting, 0.169 for TVAE and 0.192 for the copula), and the likelihood-ratio attack on 10 of 10 (by at least 0.021). The unseen-record control gains nothing (0.47 to 0.54 under every attack).
+
+**The diffusion model is the most exposed setting over patients, under every attack.** It beats every other setting on AUROC on 9 or 10 of 10 splits under all three attacks, and on TPR at 1% FPR on 10 of 10 (53.4% boosted, 44.2% likelihood ratio), all Holm p = 0.020.
+
+**TVAE above the regularised diffusion model is a robust reversal.** Under both learned attacks TVAE has the higher AUROC on 10 of 10 splits (+0.056 boosted, +0.066 likelihood ratio, Holm p = 0.020), while under the distance attack the regularised model is higher on 10 of 10 (+0.023). On TPR at 1% FPR the two are not separable under either learned attack (5 of 10 splits, Holm p ≥ 0.23).
+
+**AUROC and low-FPR exposure rank the copula and the regularised diffusion model in opposite orders.** The copula has the higher learned-attack AUROC on 10 of 10 splits (+0.053 boosted, +0.024 likelihood ratio), and the regularised diffusion model the higher TPR at 1% FPR on 10 of 10 (+0.094 and +0.137). The copula leaks a little about many records; the regularised model, which collapses onto about 25 admissions, leaks a lot about a few. Which one is "more private" depends on which of these an evaluation weights, and the paper follows Carlini et al. in weighting the second.
+
+**TVAE and the copula tie on boosted AUROC** (+0.003, 6 of 10 splits, Holm p = 0.43), but TVAE is higher on likelihood-ratio AUROC and on TPR at 1% FPR under both learned attacks (9 or 10 of 10 splits, Holm p = 0.020). The copula is above the independent setting under every attack and metric (10 of 10 or 9 of 10, Holm p = 0.020).
+
 ## What this changes for the paper
 
 - Withdraw "the checked worst-case distance attack bounds what we found". State that the distance attack gives a lower bound and report the learned attacks beside it.
@@ -87,4 +119,4 @@ Running CTGAN in parallel workers needs `LOKY_MAX_CPU_COUNT=1`: its `DataTransfo
 
 ## Limits
 
-Three seeds on the reported split for all nine non-private settings and the six DP settings; the 10-split rerun covers five settings and the two controls ([`learned_attack_tests.py`](learned_attack_tests.py)). One boosted-model configuration, not tuned. LiRA uses a shared variance and only the nearest distance per metric. Zhang et al.'s contrastive-learning attack was not run, so stronger attacks than these may exist; the scores here are still lower bounds. TPR at 1% FPR rests on about 15 false positives per pooled curve.
+Three seeds on the reported split for all nine non-private settings and the six DP settings; the 10-split rerun covers five settings and the two controls, one generator seed per split, and the splits are redraws of the same 100 patients. One boosted-model configuration, not tuned. LiRA uses a shared variance and only the nearest distance per metric. Zhang et al.'s contrastive-learning attack was not run, so stronger attacks than these may exist; the scores here are still lower bounds. TPR at 1% FPR rests on about 15 false positives per pooled curve.

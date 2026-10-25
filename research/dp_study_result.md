@@ -3,7 +3,7 @@
 Post-course extension work (improvement plan item 4). The reported benchmark has no arm with a formal guarantee, so every privacy statement in it is attack-relative: it says an attack failed, not that leakage is bounded. This adds three differentially private mechanisms at two budgets each, scored on the benchmark's own metrics.
 
 ```bash
-python -m research.dp_study --seeds 20 --workers 3     # 160 runs, 62 s
+python -m research.dp_study --seeds 20 --workers 3     # 160 runs, 36 s
 ```
 
 > **Rebuilt (2026-10-24).** The first version of `generators/dp_copula.py` was not differentially private, for three reasons found in review: numeric ranges and category levels were read from the training data rather than a public schema; the outputs were decoded through `FrameCodec`, which is fitted on the training rows and draws rare ICD-9 codes from the training pool by their real counts; and the correlation noise was calibrated per entry, which over a 110 x 110 matrix overspent the stated budget by a factor of thousands. The mechanism has been rewritten, every number below is from the rebuilt version, and the earlier numbers are listed at the end for comparison. The headline of the first version ("the attack cannot tell DP from a non-private baseline") no longer holds; it was largely the code leak.
@@ -26,32 +26,34 @@ Budget: rho = 0.0208 at epsilon = 1 and rho = 1.049 at epsilon = 8. Resulting no
 
 ## Results, 20 seeds per arm
 
-| Arm | Mean JSD ↓ | Corr. diff ↓ | TSTR LR / RF | Gower MIA ↓ | Synthetic death rate | Runs with an unusable label |
-|---|---|---|---|---|---|---|
-| `dp_marginals` ε=1 | 0.368 | 0.166 | 0.480 / 0.446 | **0.501** | 0.409 | 35% |
-| `dp_marginals` ε=8 | **0.185** | 0.163 | 0.476 / 0.517 | 0.525 | 0.353 | **0%** |
-| `dp_copula` ε=1 | 0.375 | 0.167 | 0.524 / 0.537 | **0.501** | 0.415 | 35% |
-| `dp_copula` ε=8 | 0.190 | 0.164 | 0.499 / 0.511 | 0.521 | 0.357 | **0%** |
-| `dp_bayesnet` ε=1 | 0.395 | 0.179 | 0.433 / 0.446 | **0.500** | 0.405 | 30% |
-| `dp_bayesnet` ε=8 | 0.203 | 0.170 | **0.560 / 0.575** | 0.513 | 0.363 | **0%** |
-| `gaussian_copula_shrink010` (no DP) | 0.016 | 0.102 | 0.662 / 0.711 | 0.629 | 0.362 | 0% |
-| `independent_marginals` (no DP) | 0.016 | 0.163 | 0.493 / 0.480 | 0.551 | 0.361 | 0% |
+Rerun on 2026-10-25 with two changes: the full attack suite of the benchmark (the 4-column, Gower and ICD-9 code-set attacks on the same shadow generators, and their worst case) instead of the Gower attack alone, and a fix to the public domain, which had allowed a missing ICU stay that the schema never contains (every admission in the cohort comes from an ICU stay). The fix moved the DP-Bayes utility at ε = 8 from 0.568 to 0.588; the other numbers moved by at most 0.01.
 
-Utility is averaged over the runs where it is defined. Real training death rate is 0.362.
+| Arm | Mean JSD ↓ | Corr. diff ↓ | TSTR LR / RF | 4-numeric | Gower | ICD-9 set | Worst case | Synthetic death rate | Unusable runs |
+|---|---|---|---|---|---|---|---|---|---|
+| `dp_marginals` ε=1 | 0.370 | 0.166 | 0.483 / 0.523 | 0.507 | 0.497 | 0.499 | 0.521 | 0.409 | 35% |
+| `dp_marginals` ε=8 | **0.186** | 0.164 | 0.450 / 0.503 | 0.502 | 0.520 | 0.510 | 0.532 | 0.353 | **0%** |
+| `dp_copula` ε=1 | 0.377 | 0.166 | 0.501 / 0.541 | 0.504 | 0.499 | 0.498 | 0.521 | 0.416 | 35% |
+| `dp_copula` ε=8 | 0.192 | 0.164 | 0.455 / 0.509 | 0.506 | 0.527 | 0.507 | 0.535 | 0.357 | **0%** |
+| `dp_bayesnet` ε=1 | 0.391 | 0.179 | 0.466 / 0.516 | 0.511 | 0.502 | 0.504 | 0.525 | 0.405 | 30% |
+| `dp_bayesnet` ε=8 | 0.206 | 0.169 | **0.566 / 0.610** | 0.503 | 0.513 | 0.505 | 0.527 | 0.363 | **0%** |
+| `gaussian_copula_shrink010` (no DP) | 0.016 | 0.102 | 0.662 / 0.711 | 0.523 | 0.629 | 0.656 | 0.656 | 0.362 | 0% |
+| `independent_marginals` (no DP) | 0.016 | 0.163 | 0.493 / 0.480 | 0.507 | 0.551 | 0.638 | 0.638 | 0.361 | 0% |
+
+Utility is averaged over the runs where it is defined. Real training death rate is 0.362. Attack columns are shadow-model AUROC, mean of 20 seeds.
 
 ---
 
 ## Five findings
 
-**1. The guarantee costs about 12x in marginal fidelity at ε = 8 and 23x at ε = 1.** Mean JSD goes from 0.016 without DP to 0.185 at ε = 8 and 0.37 at ε = 1. With 94 rows the noise on a histogram cell (sigma 8.6 at ε = 8) is the size of the counts it measures.
+**1. The guarantee costs about 12x in marginal fidelity at ε = 8 and 23x at ε = 1.** Mean JSD goes from 0.016 without DP to 0.186 to 0.206 at ε = 8 and 0.37 to 0.39 at ε = 1. With 94 rows the noise on a histogram cell (sigma 8.6 at ε = 8) is the size of the counts it measures.
 
-**2. The membership attack can now tell DP apart, and at ε = 1 it is at chance.** The Gower attack scores both DP arms at 0.501 at ε = 1, and 0.521 to 0.525 at ε = 8, against 0.551 for the non-private independent floor (Welch p = 0.007 and 0.014 at ε = 8, p < 0.0001 at ε = 1). This is the reverse of the first version, and the reason is the code leak: every non-private setting, the independent floor included, scores above chance because a generator can only emit ICD-9 codes it saw in training (see the paper's attack-anchor section). With codes drawn from a noisy count over the public dictionary instead, that channel closes.
+**2. The code-set attack, which carries the benchmark's leak, is at chance on every DP setting.** It scores the DP settings at 0.498 to 0.510 against 0.638 for the non-private independent setting (Welch p < 10^-22 for each), and the 4-column and Gower attacks are at 0.497 to 0.527. This is what the code-channel explanation predicts: every non-private setting reaches about 0.64 on code sets because a generator decoded through the shared encoding can only emit ICD-9 codes it saw in training, and the DP settings draw codes from a noisy count over the public dictionary instead. The worst case of the three attacks is 0.521 to 0.535. Part of that is the maximum of three estimates near chance, which on its own sits above 0.5 (the worst attack differs from run to run for the DP settings, while for the non-private settings it is almost always the same one), so the per-attack scores are the better reading near chance.
 
-**3. At ε = 8 every run is usable; at ε = 1 a third are not.** At ε = 1, 35% of runs produce a mortality column with a single class, so no classifier can be trained on them. At ε = 8 none do. Reporting only the mean AUROC over surviving runs would hide the ε = 1 failures.
+**3. At ε = 8 every run is usable; at ε = 1 a third are not.** At ε = 1, 30 to 35% of runs produce a mortality column with a single class, so no classifier can be trained on them. At ε = 8 none do. Reporting only the mean AUROC over surviving runs would hide the ε = 1 failures.
 
-**4. Spending the budget on the task's own relationship recovers a little utility, not significantly.** `dp_bayesnet` at ε = 8 reaches a mean TSTR AUROC of 0.568 (LR 0.560, RF 0.575), the highest of the DP arms, against 0.486 for the non-private floor and 0.686 for the tuned copula. The gain over the floor is not significant (Welch p = 0.17) and the gap to the copula is (p = 0.045). Its attack score, 0.513, is still below the floor's (p = 0.0004). At ε = 1 it is at chance on both. So at n = 94 even a DP mechanism aimed at the one relationship the task needs keeps too little of it to measure reliably.
+**4. Spending the budget on the task's own relationship recovers some utility, not significantly.** `dp_bayesnet` at ε = 8 reaches a mean TSTR AUROC of 0.588 (LR 0.566, RF 0.610), the highest of the DP arms, against 0.486 for the non-private independent setting and 0.686 for the tuned copula. Neither difference is significant over 20 seeds (Welch p = 0.06 and 0.07). At ε = 1 it is at chance (0.491). At n = 94 even a DP mechanism aimed at the one relationship the task needs keeps too little of it to separate from either reference.
 
-**5. Dependence between other columns is not recoverable at this size.** Both DP arms carry no correlation structure (0.163 to 0.167, the floor's 0.163), and their utility is at chance (0.45 to 0.54). For `dp_copula` the correlation measurement is real but its noise (sigma 0.30 per entry at ε = 8, 2.2 at ε = 1) is larger than the correlations it measures, so the public-noise shrinkage pulls it to 70% and 99% independence. Spending budget on correlation at n = 94 buys nothing measurable; the ICD-9 codes fare similarly, since no code occurs often enough among 94 admissions to clear the 3-sigma threshold reliably, so the released codes are mostly drawn from noise.
+**5. Dependence between other columns is not recoverable at this size.** No DP arm carries correlation structure (0.164 to 0.179, the independent setting's 0.163 or worse). For `dp_copula` the correlation measurement is real but its noise (sigma 0.30 per entry at ε = 8, 2.2 at ε = 1) is larger than the correlations it measures, so the public-noise shrinkage pulls it to 70% and 99% independence. The ICD-9 codes fare similarly: no code occurs often enough among 94 admissions to clear the 3-sigma threshold reliably, so the released codes are mostly drawn from noise.
 
 ## Against the first version
 
@@ -69,5 +71,5 @@ The rebuilt mechanism is both private and better on every column of this table. 
 - One-way marginals, a small correlation block, and a Bayesian network with a fixed structure. MST and AIM select which marginals to measure from the data and estimate a consistent model from them; they were not run here because their implementation (`private-pgm`) is not installed in this environment. They would likely keep more structure; these are straightforward baselines, not the best DP synthesisers available.
 - Admission-level DP only, delta = 1e-5, and the public-domain assumptions listed above (schema levels, ICD-9 dictionary, clinical bounds, n).
 - The secondary-code cap (38) and the bin count (10) are fixed public choices, not tuned; tuning them on this data would itself use the data.
-- Only the Gower membership attack was run against the DP arms, not the full three-attack suite with calibration.
+- The copy and unseen-record controls were not rerun for the DP study; they do not depend on the generator, and the benchmark values apply.
 - DP outputs contain ICD-9 codes that never occur in training, so they fail the Stage 2 output contract (`generators.validate`) by design and are scored here rather than through `evaluation.eval_runner`.

@@ -43,10 +43,21 @@ def main():
     out = pd.concat(rows, ignore_index=True)
     out.to_csv(OUT_DIR / "learned_attack_split_tests.csv", index=False)
 
+    # 95% t-intervals over the splits; the splits overlap, so these describe reshuffling this cohort
+    from scipy.stats import t as student_t
+
+    ci = []
+    for (arm, metric), x in df.melt(id_vars="arm", value_vars=METRICS, var_name="metric").groupby(["arm", "metric"])["value"]:
+        half = student_t.ppf(0.975, len(x) - 1) * x.std(ddof=1) / np.sqrt(len(x))
+        ci.append({"arm": arm, "metric": metric, "n_splits": len(x), "mean": x.mean(), "lo": x.mean() - half, "hi": x.mean() + half})
+    ci = pd.DataFrame(ci)
+    ci.to_csv(OUT_DIR / "learned_attack_split_intervals.csv", index=False)
+
     summary = df.groupby("arm")[METRICS].agg(["mean", "std"])
     with pd.option_context("display.width", 240, "display.float_format", "{:.3f}".format):
         print(summary.to_string())
         print("\n" + out.to_string(index=False))
+        print("\n95% intervals over splits\n" + ci.to_string(index=False))
     return 0
 
 

@@ -6,6 +6,8 @@ Post-course extension work (improvement plan item 4). The reported benchmark has
 python -m research.dp_study --seeds 20 --workers 3     # 160 runs, 62 s
 ```
 
+> **A fourth mechanism was added later (2026-10-26).** `dp_aim` (AIM, McKenna et al. 2022, via the authors' `private-pgm`) is now in this script's `ARMS`, so the command above runs 200 runs over ten arms rather than the 160 behind the table below, and AIM is slow enough to take it to about 295 s. Its numbers and the comparison against the three mechanisms here are in [`dp_aim_result.md`](dp_aim_result.md); the table below is unchanged and still reproduces exactly (`dp_marginals` ε=8 at 0.1849 against the 0.185 printed here, on a second machine).
+
 > **Rebuilt (2026-10-24).** The first version of `generators/dp_copula.py` was not differentially private, for three reasons found in review: numeric ranges and category levels were read from the training data rather than a public schema; the outputs were decoded through `FrameCodec`, which is fitted on the training rows and draws rare ICD-9 codes from the training pool by their real counts; and the correlation noise was calibrated per entry, which over a 110 x 110 matrix overspent the stated budget by a factor of thousands. The mechanism has been rewritten, every number below is from the rebuilt version, and the earlier numbers are listed at the end for comparison. The headline of the first version ("the attack cannot tell DP from a non-private baseline") no longer holds; it was largely the code leak.
 
 ---

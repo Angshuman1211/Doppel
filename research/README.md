@@ -15,7 +15,23 @@ Outputs land in `research/output/` and third-party data in `research/data/`, bot
 | 6 | [`task_study.py`](task_study.py) · [result](task_study_result.md) | Does the utility ranking depend on which outcome is predicted? |
 | 7 | [`scale_study_result.md`](scale_study_result.md) | Scaling, via `split_study.py --splits 30`. The full grid is not the bottleneck (machines are), so what got scaled is the split count — and it reversed item 5's utility nulls. |
 
+### Journal version (JBI), Track 1
+
+A second set of tasks, for the journal submission rather than the improvement plan.
+
+| Task | Study | What it answers |
+|---|---|---|
+| J1 | [`generators/dp_aim.py`](../generators/dp_aim.py) · [result](dp_aim_result.md) | AIM (McKenna et al., 2022) as a DP arm, wrapping the authors' `private-pgm`, on the same public domain as the other DP arms. It loses to noisy one-way histograms at n = 94. |
+| J2 | [`capacity_study_result.md`](capacity_study_result.md) | Capacity × cohort size: training budget and network width crossed with n, on near-copy rate **and** the shadow attack. Closes the "you varied data but never capacity" objection. |
+| J3 | [`tabddpm_check.py`](tabddpm_check.py) · [result](tabddpm_check_result.md) | Does our diffusion implementation behave like the official TabDDPM? Head-to-head against the authors' own model. |
+| J4 | — | MIMIC-IV demo replication. Not started; needs Track 3's preprocessing (Anoushka). |
+| J5 | — | Patient-level DP for the AIM arm. Not started; the arm's guarantee is per-admission, and `dp_aim.py` says so. |
+
+J2 adds a `CAPACITY_ARMS` grid to `size_sweep.py` that both the sweep and the attack read, so the two score identical draws.
+
 [`tabular_codec.py`](tabular_codec.py) is shared infrastructure, not a study: a schema-agnostic replacement for `generators/codec.py` so the generators can run on a dataset that is not MIMIC. The generators themselves needed no changes to accept it.
+
+Two third-party checkouts live under `research/third_party/` (gitignored), both pinned and both used for their model code only: [tab-ddpm](https://github.com/yandex-research/tab-ddpm) at `b476257d` (MIT) and [private-pgm](https://github.com/ryan112358/private-pgm) at `9429881f` (Apache 2.0). `pip install research/third_party/private-pgm` adds jax, optax and chex; a dry run confirmed it changes no pinned version (numpy 2.4.6, scipy 1.17.1, torch 2.14.0 all unmoved).
 
 ## Running them
 

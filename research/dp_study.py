@@ -45,7 +45,8 @@ def _quiet():
 def _run(arm, seed):
     from evaluation.eval_runner import cached, real_generator_fn
     from evaluation.fidelity_metrics import run_fidelity_report
-    from evaluation.membership_inference import NUMERIC_COLS, gower_distances, run_membership_inference
+    from evaluation.membership_inference import (NUMERIC_COLS, codes_distances, gower_distances,
+                                                 run_membership_inference)
     from evaluation.utility_eval import tstr_eval
 
     real = S.load_real()
@@ -73,9 +74,18 @@ def _run(arm, seed):
         u = tstr_eval(synth, holdout)
         row["tstr_lr"], row["tstr_rf"] = u["logistic_regression"], u["random_forest"]
 
-    gower = run_membership_inference(train, cached(real_generator_fn(arm)), NUMERIC_COLS,
-                                     n_shadow=N_SHADOW, seed=seed, distance_fn=gower_distances)
-    row["mia_gower"] = gower["mean_attack_auroc"]
+    # The benchmark's full attack suite: the three scored distances on the same shadow generators
+    # (cached, so each shadow is fitted once), the worst case of the three, and TPR at 1% FPR.
+    generator_fn = cached(real_generator_fn(arm, disk_cache=False))
+    attacks = {"numeric4": None, "gower": gower_distances, "codes": codes_distances}
+    results = {name: run_membership_inference(train, generator_fn, NUMERIC_COLS, n_shadow=N_SHADOW,
+                                              seed=seed, distance_fn=fn)
+               for name, fn in attacks.items()}
+    for name, r in results.items():
+        row[f"mia_{name}"] = r["mean_attack_auroc"]
+        row[f"tpr1_{name}"] = r["tpr_at_fpr_1pct"]
+    worst = max(results, key=lambda k: results[k]["mean_attack_auroc"])
+    row["mia_worst"], row["mia_worst_attack"] = results[worst]["mean_attack_auroc"], worst
     row["seconds"] = time.time() - start
     return row
 
@@ -109,7 +119,8 @@ def main(argv=None):
     summary = df.groupby("arm").agg(
         mean_js=("mean_js", "mean"), corr_diff=("corr_diff", "mean"),
         tstr_rf=("tstr_rf", "mean"), tstr_rf_sd=("tstr_rf", "std"),
-        mia_gower=("mia_gower", "mean"),
+        mia_gower=("mia_gower", "mean"), mia_codes=("mia_codes", "mean"), mia_numeric4=("mia_numeric4", "mean"),
+        mia_worst=("mia_worst", "mean"), tpr1_gower=("tpr1_gower", "mean"),
         death_rate=("synth_death_rate", "mean"),
         degenerate=("degenerate_label", "mean"), n=("seed", "count"))
     with pd.option_context("display.width", 200, "display.float_format", "{:.4f}".format):

@@ -175,7 +175,8 @@ class DPMarginals(Generator):
         # Age 89 is MIMIC's mask for every age above 89 (age_89_plus), so it gets its own cell.
         dom["age"] = ("numeric", (PUBLIC_BOUNDS["age"][0], S.AGE_CAP - 1, True, S.AGE_CAP))
         dom["los_hospital_days"] = ("numeric", (*PUBLIC_BOUNDS["los_hospital_days"], False, None))
-        dom["los_icu_days"] = ("numeric", (*PUBLIC_BOUNDS["los_icu_days"], False, "missing"))
+        # Every admission in the schema has an ICU stay (the cohort is built from ICUSTAYS), so no missing cell.
+        dom["los_icu_days"] = ("numeric", (*PUBLIC_BOUNDS["los_icu_days"], False, None))
         dom["n_secondary"] = ("level", list(range(MAX_SECONDARY + 1)))
         for i in lab_ids:
             mean_col, frac_col = S.lab_pair(i)

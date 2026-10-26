@@ -52,3 +52,4 @@ research/data/
 # Office files belong in Presentation_Files/ (ignored), never at the repo root
 /*.pptx
 /*.docx
+third_party/

@@ -36,13 +36,31 @@ ARMS = ["dp_marginals_eps1", "dp_marginals_eps8", "dp_copula_eps1", "dp_copula_e
         "gaussian_copula_shrink010", "independent_marginals"]
 TARGET = "hospital_expire_flag"
 N_SHADOW = 8
+CAP_SEED = 0            # fixed, so every arm and seed sees the same capped cohort
+
+
+def cap_admissions(train, max_per_patient: int, seed: int = CAP_SEED):
+    """Keep at most `max_per_patient` admissions per patient.
+
+    This is what turns a per-admission guarantee into a per-patient one. With a cap of 1 each patient
+    contributes exactly one row, so replacing a patient *is* replacing a row and the mechanisms' existing
+    bounded-DP guarantee already holds at patient level, with no extra noise. The cap is public by
+    construction, which matters: reading the real maximum off the data would itself leak.
+    """
+    rng = np.random.default_rng(seed)
+    keep = []
+    for idx in train.groupby(S.ID_COLS[0]).indices.values():
+        idx = np.asarray(idx)
+        keep.extend(idx if len(idx) <= max_per_patient
+                    else rng.choice(idx, max_per_patient, replace=False))
+    return train.iloc[np.sort(np.asarray(keep))].reset_index(drop=True)
 
 
 def _quiet():
     warnings.filterwarnings("ignore")
 
 
-def _run(arm, seed):
+def _run(arm, seed, cap=None):
     from evaluation.eval_runner import cached, real_generator_fn
     from evaluation.fidelity_metrics import run_fidelity_report
     from evaluation.membership_inference import (NUMERIC_COLS, codes_distances, gower_distances,
@@ -51,6 +69,8 @@ def _run(arm, seed):
 
     real = S.load_real()
     train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT].reset_index(drop=True)
+    if cap:
+        train = cap_admissions(train, cap)
     holdout = real[real[S.SPLIT_COL] != S.TRAIN_SPLIT].reset_index(drop=True)
     generator, params = resolve(arm)
 
@@ -63,7 +83,8 @@ def _run(arm, seed):
     tmp.unlink()
 
     fidelity = run_fidelity_report(train, synth)
-    row = {"arm": arm, "seed": seed, "mean_js": fidelity["mean_js_divergence"],
+    row = {"arm": arm, "seed": seed, "cap": cap or 0, "train_rows": len(train),
+           "mean_js": fidelity["mean_js_divergence"],
            "corr_diff": fidelity["correlation_diff"],
            "synth_death_rate": float(synth[TARGET].mean()),
            "degenerate_label": synth[TARGET].nunique() < 2}
@@ -98,11 +119,20 @@ def main(argv=None):
     # A fixed output path means a run over a subset of arms silently replaces the full study's results
     # instead of sitting beside them.
     parser.add_argument("--out", default="dp_study", help="stem for the CSVs under research/output")
+    parser.add_argument("--cap", type=int, default=None,
+                        help="max admissions per patient; only 1 is supported, and it makes the "
+                             "arms' existing bounded-DP guarantee a per-patient one")
     args = parser.parse_args(argv)
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         os.environ[var] = "1"
+    if args.cap is not None and args.cap != 1:
+        # A cap of m > 1 lets one patient move m rows, so every mechanism's L2 sensitivity would have to
+        # be multiplied by m (and AIM's epsilon divided by it). None of that is implemented, so running
+        # it would produce a per-admission guarantee on a capped cohort and look like a per-patient one.
+        parser.error(f"--cap {args.cap} is not supported: only --cap 1 gives a per-patient guarantee "
+                     "without rescaling every mechanism's sensitivity, which is not implemented.")
 
-    tasks = [(a, 42 + s) for a in args.arms for s in range(args.seeds)]
+    tasks = [(a, 42 + s, args.cap) for a in args.arms for s in range(args.seeds)]
     print(f"{len(tasks)} runs on {args.workers} workers", flush=True)
     rows, start = [], time.time()
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -117,7 +147,7 @@ def main(argv=None):
     df.to_csv(OUT_DIR / f"{args.out}.csv", index=False)
 
     summary = df.groupby("arm").agg(
-        mean_js=("mean_js", "mean"), corr_diff=("corr_diff", "mean"),
+        train_rows=("train_rows", "mean"), mean_js=("mean_js", "mean"), corr_diff=("corr_diff", "mean"),
         tstr_rf=("tstr_rf", "mean"), tstr_rf_sd=("tstr_rf", "std"),
         mia_gower=("mia_gower", "mean"), mia_codes=("mia_codes", "mean"), mia_numeric4=("mia_numeric4", "mean"),
         mia_worst=("mia_worst", "mean"), tpr1_gower=("tpr1_gower", "mean"),

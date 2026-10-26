@@ -1,0 +1,5 @@
+# Keep data files byte-identical on every OS: the dataset is pinned by sha256
+# (EXPECTED_DATASET_SHA256), and Windows line endings would change the hash.
+output/*.csv -text
+contracts/**/*.json -text
+output/*.json -text

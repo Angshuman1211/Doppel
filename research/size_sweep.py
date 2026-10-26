@@ -54,6 +54,16 @@ ARMS = {
     "tabular_diffusion": ("tabular_diffusion", {}),
 }
 
+# Capacity grid for the journal version. The sweep above varies the cohort and holds the generator fixed,
+# so it measures only half of "capacity relative to cohort size" — a reviewer's objection, and one
+# size_sweep_result.md already concedes. `steps` is the training budget and `hidden` the network width,
+# the two knobs that set how much the diffusion model can store. `diffusion_s3000_h256` repeats
+# `tabular_diffusion`'s configuration, so the two must agree on a shared seed; that is the check that the
+# grid is wired to the same generator.
+CAPACITY_ARMS = {f"diffusion_s{steps}_h{hidden}": ("tabular_diffusion", {"steps": steps, "hidden": hidden})
+                 for steps in (500, 1000, 3000) for hidden in (128, 256)}
+ARMS.update(CAPACITY_ARMS)
+
 
 def load_context():
     df = pd.read_csv(DATA, low_memory=False)
@@ -139,6 +149,9 @@ def main(argv=None):
     parser.add_argument("--seeds", type=int, default=2)
     parser.add_argument("--arms", nargs="+", default=sorted(ARMS))
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
+    # Named like size_attack.py's, because a fixed output path means a run with a different arm list
+    # silently replaces the main sweep's results rather than sitting beside them.
+    parser.add_argument("--out", default="size_sweep", help="stem for the CSVs under research/output")
     args = parser.parse_args(argv)
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         os.environ[var] = "1"
@@ -156,7 +169,7 @@ def main(argv=None):
             print(f"[{i:3d}/{len(tasks)}] {time.time() - start:6.0f}s  "
                   f"{rows[-1]['arm']:26s} n={rows[-1]['size_patients']:<5d} "
                   f"near_copy={rows[-1]['near_copy_rate']:.3f}", flush=True)
-            pd.DataFrame(rows).to_csv(OUT_DIR / "size_sweep.csv", index=False)
+            pd.DataFrame(rows).to_csv(OUT_DIR / f"{args.out}.csv", index=False)
 
     df = pd.DataFrame(rows)
     summary = df.groupby(["arm", "size_patients"]).agg(
@@ -165,8 +178,8 @@ def main(argv=None):
         corr_diff=("corr_diff", "mean"), tstr_rf=("tstr_rf", "mean"), seconds=("seconds", "mean"))
     with pd.option_context("display.width", 220, "display.float_format", "{:.4f}".format):
         print("\n" + summary.to_string())
-    summary.to_csv(OUT_DIR / "size_sweep_summary.csv")
-    print(f"\nwrote {OUT_DIR}/size_sweep.csv and _summary.csv ({time.time() - start:.0f}s)")
+    summary.to_csv(OUT_DIR / f"{args.out}_summary.csv")
+    print(f"\nwrote {OUT_DIR}/{args.out}.csv and _summary.csv ({time.time() - start:.0f}s)")
     return 0
 
 

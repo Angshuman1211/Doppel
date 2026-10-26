@@ -32,6 +32,7 @@ from generators.generate import synthesize  # noqa: E402
 
 OUT_DIR = ROOT / "research" / "output"
 ARMS = ["dp_marginals_eps1", "dp_marginals_eps8", "dp_copula_eps1", "dp_copula_eps8",
+        "dp_bayesnet_eps1", "dp_bayesnet_eps8", "dp_aim_eps1", "dp_aim_eps8",
         "gaussian_copula_shrink010", "independent_marginals"]
 TARGET = "hospital_expire_flag"
 N_SHADOW = 8
@@ -84,6 +85,9 @@ def main(argv=None):
     parser.add_argument("--seeds", type=int, default=20)
     parser.add_argument("--arms", nargs="+", default=ARMS)
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
+    # A fixed output path means a run over a subset of arms silently replaces the full study's results
+    # instead of sitting beside them.
+    parser.add_argument("--out", default="dp_study", help="stem for the CSVs under research/output")
     args = parser.parse_args(argv)
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         os.environ[var] = "1"
@@ -100,7 +104,7 @@ def main(argv=None):
                 print(f"[{i:3d}/{len(tasks)}] {time.time() - start:5.0f}s", flush=True)
 
     df = pd.DataFrame(rows).sort_values(["arm", "seed"], ignore_index=True)
-    df.to_csv(OUT_DIR / "dp_study.csv", index=False)
+    df.to_csv(OUT_DIR / f"{args.out}.csv", index=False)
 
     summary = df.groupby("arm").agg(
         mean_js=("mean_js", "mean"), corr_diff=("corr_diff", "mean"),
@@ -111,8 +115,8 @@ def main(argv=None):
     with pd.option_context("display.width", 200, "display.float_format", "{:.4f}".format):
         print("\n" + summary.to_string())
     print("\nreal train death rate: 0.3617 | non-private copula JSD about 0.016")
-    summary.to_csv(OUT_DIR / "dp_study_summary.csv")
-    print(f"wrote {OUT_DIR}/dp_study.csv and _summary.csv ({time.time() - start:.0f}s)")
+    summary.to_csv(OUT_DIR / f"{args.out}_summary.csv")
+    print(f"wrote {OUT_DIR}/{args.out}.csv and _summary.csv ({time.time() - start:.0f}s)")
     return 0
 
 

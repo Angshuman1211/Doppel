@@ -21,6 +21,9 @@ ARMS = {
     "dp_copula_eps8": ("dp_copula", {"epsilon": 8.0}),
     "dp_bayesnet_eps1": ("dp_bayesnet", {"epsilon": 1.0}),
     "dp_bayesnet_eps8": ("dp_bayesnet", {"epsilon": 8.0}),
+    # AIM (McKenna et al. 2022) via the authors' private-pgm; needs `pip install research/third_party/private-pgm`.
+    "dp_aim_eps1": ("dp_aim", {"epsilon": 1.0}),
+    "dp_aim_eps8": ("dp_aim", {"epsilon": 8.0}),
 }
 
 # The nine arms the course benchmark reports, so "all arms" never silently means the extension set.

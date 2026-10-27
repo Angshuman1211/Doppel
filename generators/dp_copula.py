@@ -4,8 +4,15 @@ Post-course extension work (improvement plan item 4): the benchmark has no arm w
 so every privacy statement in it is attack-relative. These two arms carry one.
 
 Guarantee: (epsilon, delta)-differential privacy at the level of one admission (one row), bounded
-(replace-one) neighbours, with the dataset size n public. Patient-level privacy follows by group privacy
-over a patient's admissions (up to 15 in the MIMIC demo), so it is much weaker and is not claimed.
+(replace-one) neighbours, with the dataset size n public.
+
+Patient-level privacy is not claimed here, and the group-privacy route is worse than it looks. The
+relevant maximum is 3, not the 15 this docstring used to cite: subject 41976's 15 admissions are all in
+the *holdout*, which no generator ever sees, so what matters is the 3 of the training split. Even at 3,
+group privacy takes (epsilon, delta) to (3*epsilon, delta*(e^(3 epsilon) - 1)/(e^epsilon - 1)), which is
+(3, 1.1e-4) at epsilon = 1 and (24, 88.9) at epsilon = 8 — the second has delta above 1 and is therefore
+vacuous. Capping admissions per patient is the usable route; `research/dp_study.py --cap 1` does it and
+`research/patient_dp_result.md` measures what it costs (corrected 2026-10-28).
 
 What makes it DP end to end, and what the first version (2026-10-22) got wrong:
 

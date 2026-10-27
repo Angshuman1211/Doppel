@@ -18,9 +18,12 @@ through a noisy measurement. AIM replaces only the one-way histograms.
 Two accounting points, both stated because they are easy to get wrong:
 
 - **Bounded vs unbounded.** The other arms are bounded (replace-one) DP. AIM is written for unbounded
-  (add/remove-one) DP, and an epsilon-unbounded mechanism is only 2*epsilon-bounded, so AIM is run at
-  **half** the arm's epsilon. Without that halving the arm would claim a guarantee twice as strong as it
-  has.
+  (add/remove-one) DP. A replace is one removal plus one addition, so an (eps', delta') add/remove
+  guarantee becomes **(2*eps', (1 + e^eps') * delta')** under replace-one — the k = 2 case of group
+  privacy. Both halves of that matter. AIM is therefore run at **half** the arm's epsilon *and* at a
+  delta divided by (1 + e^eps'), so that what comes out the other side is the delta this arm advertises.
+  An earlier version halved only epsilon, which left the arm's true delta at about 1.4e-5 at epsilon = 1
+  and 2.7e-5 at epsilon = 8 while claiming 1e-5 (caught in review, 2026-10-26).
 - **Composition.** AIM does its own zCDP accounting internally from the (epsilon, delta) it is given.
   Rather than mix that with this module's zCDP bookkeeping, the two measurements are composed in
   (epsilon, delta) by **basic composition**: AIM gets (share * epsilon, delta/2) and the code counts get
@@ -150,9 +153,14 @@ class DPAIM(DPMarginals):
 
         # AIM's own code expects the legacy RandomState API for its exponential mechanism.
         seed = int(rng.integers(0, 2**31 - 1))
-        mechanism = AIM(epsilon=epsilon_aim / 2.0, delta=self.delta / 3.0,   # unbounded -> bounded
+        # unbounded -> bounded: (eps', delta') add/remove gives (2 eps', (1 + e^eps') delta') replace-one,
+        # so both arguments are pre-divided for the conversion to land on (epsilon_aim, delta/3).
+        aim_epsilon = epsilon_aim / 2.0
+        aim_delta = (self.delta / 3.0) / (1.0 + np.exp(aim_epsilon))
+        mechanism = AIM(epsilon=aim_epsilon, delta=aim_delta,
                         prng=np.random.RandomState(seed), rounds=self.rounds,
                         max_model_size=self.max_model_size, max_iters=self.max_iters)
+        self.aim_epsilon, self.aim_delta = aim_epsilon, aim_delta
         _model, synthetic = mechanism.run(data, workload, num_synth_rows=max(self.n, 1000))
         frame = pd.DataFrame(synthetic.to_dict())      # mbi 2.x Dataset: columns of cell indices
         self.aim_cells = frame[columns].astype(int).reset_index(drop=True)
@@ -190,9 +198,11 @@ class DPAIM(DPMarginals):
                "mechanism": "aim_private_pgm", "aim_commit": AIM_COMMIT[:12],
                "degree": self.degree, "max_cells": self.max_cells, "rounds": self.rounds,
                "max_model_size": self.max_model_size, "max_iters": self.max_iters,
-               "composition": "basic over (AIM, marginals, codes)", "aim_neighbour_relation": "unbounded, run at eps/2"}
+               "composition": "basic over (AIM, marginals, codes)",
+               "aim_neighbour_relation": "unbounded; run at eps/2 and delta/(1+e^(eps/2))"}
         if hasattr(self, "epsilon_aim"):
             out |= {"epsilon_aim": round(self.epsilon_aim, 4), "epsilon_rest": round(self.epsilon_rest, 4),
                     "epsilon_codes": round(self.epsilon_codes, 4), "aim_columns": list(self.aim_columns),
-                    "workload_marginals": self.workload_size, "sigma_codes": round(self.sigma_codes, 3)}
+                    "workload_marginals": self.workload_size, "sigma_codes": round(self.sigma_codes, 3),
+                    "aim_epsilon_passed": round(self.aim_epsilon, 4), "aim_delta_passed": self.aim_delta}
         return out

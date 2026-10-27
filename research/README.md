@@ -25,11 +25,11 @@ A second set of tasks, for the journal submission rather than the improvement pl
 
 | Task | Study | What it answers |
 |---|---|---|
-| J1 | [`generators/dp_aim.py`](../generators/dp_aim.py) · [result](dp_aim_result.md) | AIM (McKenna et al., 2022) as a DP arm, wrapping the authors' `private-pgm`, on the same public domain as the other DP arms. It loses to noisy one-way histograms at n = 94. |
+| J1 | [`generators/dp_aim.py`](../generators/dp_aim.py) · [diagnostics](aim_diagnostics.py) · [result](dp_aim_result.md) | AIM (McKenna et al., 2022) as a DP arm, wrapping the authors' `private-pgm`, on the same public domain as the other DP arms. It loses to noisy one-way histograms at n = 94. |
 | J2 | [`capacity_study_result.md`](capacity_study_result.md) | Capacity × cohort size: training budget and network width crossed with n, on near-copy rate **and** the shadow attack. Closes the "you varied data but never capacity" objection. |
 | J3 | [`tabddpm_check.py`](tabddpm_check.py) · [result](tabddpm_check_result.md) | Does our diffusion implementation behave like the official TabDDPM? Head-to-head against the authors' own model. |
 | J4 | [spec for Track 3](../docs/C3_mimic_iv_replication_spec.md) | MIMIC-IV demo replication. Spec handed to Track 3; blocked on their preprocessing, and on decisions D1 (ICD-9 vs ICD-10) and D5 (the 20 lab itemids, which the DP arms' `PUBLIC_BOUNDS` hard-codes). |
-| J5 | [`dp_study.py --cap 1`](dp_study.py) · [result](patient_dp_result.md) | Patient-level DP, by capping admissions per patient. Costs about 4% of the fidelity DP already costs; group privacy is vacuous at eps=8. |
+| J5 | [`dp_study.py --cap 1`](dp_study.py) · [result](patient_dp_result.md) | Patient-level DP, by capping admissions per patient. Costs about 4% of the fidelity DP already costs; group privacy is vacuous at eps=8 (delta = 88.9). |
 
 J2 adds a `CAPACITY_ARMS` grid to `size_sweep.py` that both the sweep and the attack read, so the two score identical draws.
 

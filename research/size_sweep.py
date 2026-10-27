@@ -62,6 +62,10 @@ ARMS = {
 # grid is wired to the same generator.
 CAPACITY_ARMS = {f"diffusion_s{steps}_h{hidden}": ("tabular_diffusion", {"steps": steps, "hidden": hidden})
                  for steps in (500, 1000, 3000) for hidden in (128, 256)}
+# The five above stay the default arm list: the capacity grid is resolvable by name (size_attack.py
+# looks arms up in ARMS too) but a plain `python -m research.size_sweep` must still fit the five the
+# main sweep reports, not eleven.
+SWEEP_ARMS = sorted(ARMS)
 ARMS.update(CAPACITY_ARMS)
 
 
@@ -147,7 +151,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--sizes", nargs="+", type=int, default=[50, 100, 250, 500, 1000, 2500, 5000])
     parser.add_argument("--seeds", type=int, default=2)
-    parser.add_argument("--arms", nargs="+", default=sorted(ARMS))
+    parser.add_argument("--arms", nargs="+", default=SWEEP_ARMS,
+                        help=f"default is the main sweep's {len(SWEEP_ARMS)} arms; "
+                             f"the capacity grid ({', '.join(sorted(CAPACITY_ARMS))}) is opt-in")
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
     # Named like size_attack.py's, because a fixed output path means a run with a different arm list
     # silently replaces the main sweep's results rather than sitting beside them.

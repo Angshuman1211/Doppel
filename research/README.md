@@ -19,6 +19,10 @@ Outputs land in `research/output/` and third-party data in `research/data/`, bot
 | 6 | [`task_study.py`](task_study.py) · [result](task_study_result.md) | Does the utility ranking depend on which outcome is predicted? |
 | 7 | [`scale_study_result.md`](scale_study_result.md) | Scaling, via `split_study.py --splits 30`. The full grid is not the bottleneck (machines are), so what got scaled is the split count — and it reversed item 5's utility nulls. |
 
+### Second review response, Track 2
+
+[`review_response_result.md`](review_response_result.md) answers a detailed external review of the journal draft: cohort size at fixed passes per record ([`passes_study.py`](passes_study.py)), the rare-code channel ([`code_channel_study.py`](code_channel_study.py)), fidelity and utility of the 47-row models the attacks target with a two-sample test ([`fit_size_study.py`](fit_size_study.py)), a synthpop-style baseline ([`generators/sequential_cart.py`](../generators/sequential_cart.py)), corrected tests over overlapping splits ([`nb_correction.py`](nb_correction.py)) and record-clustered TPR intervals ([`tpr_bootstrap.py`](tpr_bootstrap.py)). The utility comparisons stop being significant under the correction, and about half of the fall in exposure with cohort size in the original design is fewer passes per record.
+
 ### Journal version (JBI), Track 1
 
 A second set of tasks, for the journal submission rather than the improvement plan.

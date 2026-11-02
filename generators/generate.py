@@ -56,6 +56,7 @@ GENERATORS = _LazyRegistry({
     "dp_copula": "dp_copula:DPGaussianCopula",
     "dp_bayesnet": "dp_copula:DPBayesNet",
     "dp_aim": "dp_aim:DPAIM",
+    "sequential_cart": "sequential_cart:SequentialCART",
 })
 
 

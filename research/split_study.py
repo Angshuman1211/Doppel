@@ -106,6 +106,7 @@ def main(argv=None):
     # column on 20-45% of draws, which is a finding in research/dp_study.py and noise here.
     parser.add_argument("--arms", nargs="+", default=list(REPORTED_ARMS))
     parser.add_argument("--workers", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)))
+    parser.add_argument("--out", default="split_study", help="stem for the CSVs under research/output")
     args = parser.parse_args(argv)
 
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
@@ -124,10 +125,10 @@ def main(argv=None):
             rows.append(fut.result())
             if i % 20 == 0 or i == len(tasks):
                 print(f"[{i:4d}/{len(tasks)}] {time.time() - start:6.0f}s", flush=True)
-                pd.DataFrame(rows).to_csv(OUT_DIR / "split_study.csv", index=False)   # crash insurance
+                pd.DataFrame(rows).to_csv(OUT_DIR / f"{args.out}.csv", index=False)   # crash insurance
 
     df = pd.DataFrame(rows).sort_values(["arm", "split_seed", "gen_seed"], ignore_index=True)
-    df.to_csv(OUT_DIR / "split_study.csv", index=False)
+    df.to_csv(OUT_DIR / f"{args.out}.csv", index=False)
 
     holdouts = df.groupby("split_seed")[["n_holdout", "holdout_deaths"]].first()
     print(f"\nholdout size {holdouts.n_holdout.min()}-{holdouts.n_holdout.max()} rows, "
@@ -144,7 +145,7 @@ def main(argv=None):
     for arm, v in sorted(variance_split(df, "tstr_rf").items(), key=lambda kv: -kv[1]["split_share"]):
         print(f"  {arm:28s} split sd {v['between_split_sd']:.3f} | seed sd {v['within_split_sd']:.3f} | "
               f"split share {v['split_share']:.0%}")
-    summary.to_csv(OUT_DIR / "split_study_summary.csv")
+    summary.to_csv(OUT_DIR / f"{args.out}_summary.csv")
     print(f"\nwrote {OUT_DIR}/split_study.csv and _summary.csv ({time.time() - start:.0f}s)")
     return 0
 

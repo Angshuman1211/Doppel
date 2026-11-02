@@ -24,6 +24,8 @@ ARMS = {
     # AIM (McKenna et al. 2022) via the authors' private-pgm; needs `pip install research/third_party/private-pgm`.
     "dp_aim_eps1": ("dp_aim", {"epsilon": 1.0}),
     "dp_aim_eps8": ("dp_aim", {"epsilon": 8.0}),
+    # synthpop-style baseline, added in review; not one of the nine reported arms below.
+    "sequential_cart": ("sequential_cart", {}),
 }
 
 # The nine arms the course benchmark reports, so "all arms" never silently means the extension set.

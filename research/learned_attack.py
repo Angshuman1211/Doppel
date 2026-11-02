@@ -58,7 +58,7 @@ def _distance_matrices(train, synth, scaler):
             "codes": codes_distances(train, synth)}
 
 
-def shadow_features(arm, seed, n_shadow=N_SHADOW, split_seed=None):
+def shadow_features(arm, seed, n_shadow=N_SHADOW, split_seed=None, generate=None):
     """Per shadow and record: 18 features, the three log nearest-neighbour distances and membership."""
     from sklearn.preprocessing import StandardScaler
 
@@ -73,8 +73,9 @@ def shadow_features(arm, seed, n_shadow=N_SHADOW, split_seed=None):
     else:
         from research.split_study import patient_split
         train, holdout = (d.reset_index(drop=True) for d in patient_split(real, split_seed))
-    generate = (build_generator(arm, holdout) if arm in ("exact_copy", "disjoint_real")
-                else real_generator_fn(arm, disk_cache=False))
+    if generate is None:
+        generate = (build_generator(arm, holdout) if arm in ("exact_copy", "disjoint_real")
+                    else real_generator_fn(arm, disk_cache=False))
     scaler = StandardScaler().fit(train[NUMERIC_COLS])
     n = len(train)
 
@@ -148,18 +149,13 @@ def lira(logd, member):
     return _score(labels, scores)
 
 
-def _run(arm, seed, split_seed=None):
+def attack_row(X, logd, member):
     from sklearn.ensemble import HistGradientBoostingClassifier
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
 
-    start = time.time()
-    X, logd, member = shadow_features(arm, seed, split_seed=split_seed)
-    FEATURE_DIR.mkdir(parents=True, exist_ok=True)
-    tag = f"{arm}_{seed}" if split_seed is None else f"split{split_seed}_{arm}_{seed}"
-    np.savez_compressed(FEATURE_DIR / f"{tag}.npz", X=X, logd=logd, member=member)
-    row = {"arm": arm, "seed": seed, "split_seed": split_seed, "n_train": X.shape[1], "n_shadow": X.shape[0]}
+    row = {}
     for i, name in enumerate(DISTANCES):
         # the benchmark's attack: logistic regression on minus the nearest distance (sign is irrelevant to LR)
         row[f"dist_{name}"], row[f"dist_{name}_tpr1"] = leave_one_shadow_out(X[..., [6 * i]], member, LogisticRegression)
@@ -171,8 +167,17 @@ def _run(arm, seed, split_seed=None):
         X, member, lambda: HistGradientBoostingClassifier(max_iter=200, learning_rate=0.05, max_leaf_nodes=15,
                                                           early_stopping=False, random_state=0))
     row["lira"], row["lira_tpr1"] = lira(logd, member)
-    row["seconds"] = time.time() - start
     return row
+
+
+def _run(arm, seed, split_seed=None):
+    start = time.time()
+    X, logd, member = shadow_features(arm, seed, split_seed=split_seed)
+    FEATURE_DIR.mkdir(parents=True, exist_ok=True)
+    tag = f"{arm}_{seed}" if split_seed is None else f"split{split_seed}_{arm}_{seed}"
+    np.savez_compressed(FEATURE_DIR / f"{tag}.npz", X=X, logd=logd, member=member)
+    return {"arm": arm, "seed": seed, "split_seed": split_seed, "n_train": X.shape[1], "n_shadow": X.shape[0],
+            **attack_row(X, logd, member), "seconds": time.time() - start}
 
 
 def main(argv=None):

@@ -25,9 +25,9 @@ Two accounting points, both stated because they are easy to get wrong:
   An earlier version halved only epsilon, which left the arm's true delta at about 1.4e-5 at epsilon = 1
   and 2.7e-5 at epsilon = 8 while claiming 1e-5 (caught in review, 2026-10-26).
 - **Composition.** AIM does its own zCDP accounting internally from the (epsilon, delta) it is given.
-  Rather than mix that with this module's zCDP bookkeeping, the two measurements are composed in
-  (epsilon, delta) by **basic composition**: AIM gets (share * epsilon, delta/2) and the code counts get
-  the rest. Slightly looser than a single zCDP account, and unambiguous.
+  Rather than mix that with this module's zCDP bookkeeping, the three measurements (AIM, the non-core
+  histograms and the code counts) are composed in (epsilon, delta) by **basic composition**, each with its
+  share of epsilon and delta/3. Slightly looser than a single zCDP account, and unambiguous.
 
 ICD-9 codes stay outside the graphical model on purpose: the public dictionary has 14,567 codes, and a
 variable of that cardinality would dominate the model and exhaust the budget on a single marginal. The

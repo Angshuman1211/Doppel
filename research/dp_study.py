@@ -46,13 +46,16 @@ def cap_admissions(train, max_per_patient: int, seed: int = CAP_SEED):
     contributes exactly one row, so replacing a patient *is* replacing a row and the mechanisms' existing
     bounded-DP guarantee already holds at patient level, with no extra noise. The cap is public by
     construction, which matters: reading the real maximum off the data would itself leak.
+
+    Each patient's choice is seeded from that patient alone. With one shared random stream, changing one
+    patient's admissions would shift the draws of later patients and change their kept rows, and replacing
+    a patient would no longer be replacing one row.
     """
-    rng = np.random.default_rng(seed)
     keep = []
-    for idx in train.groupby(S.ID_COLS[0]).indices.values():
+    for subject, idx in train.groupby(S.ID_COLS[0]).indices.items():
         idx = np.asarray(idx)
         keep.extend(idx if len(idx) <= max_per_patient
-                    else rng.choice(idx, max_per_patient, replace=False))
+                    else np.random.default_rng([seed, int(subject)]).choice(idx, max_per_patient, replace=False))
     return train.iloc[np.sort(np.asarray(keep))].reset_index(drop=True)
 
 
@@ -60,7 +63,7 @@ def _quiet():
     warnings.filterwarnings("ignore")
 
 
-def _run(arm, seed, cap=None):
+def _run(arm, seed, cap=None, cap_seed=CAP_SEED):
     from evaluation.eval_runner import cached, real_generator_fn
     from evaluation.fidelity_metrics import run_fidelity_report
     from evaluation.membership_inference import (NUMERIC_COLS, codes_distances, gower_distances,
@@ -70,7 +73,7 @@ def _run(arm, seed, cap=None):
     real = S.load_real()
     train = real[real[S.SPLIT_COL] == S.TRAIN_SPLIT].reset_index(drop=True)
     if cap:
-        train = cap_admissions(train, cap)
+        train = cap_admissions(train, cap, cap_seed)
     holdout = real[real[S.SPLIT_COL] != S.TRAIN_SPLIT].reset_index(drop=True)
     generator, params = resolve(arm)
 
@@ -122,6 +125,7 @@ def main(argv=None):
     parser.add_argument("--cap", type=int, default=None,
                         help="max admissions per patient; only 1 is supported, and it makes the "
                              "arms' existing bounded-DP guarantee a per-patient one")
+    parser.add_argument("--cap-seed", type=int, default=CAP_SEED, help="which admission each patient keeps under --cap 1")
     args = parser.parse_args(argv)
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
         os.environ[var] = "1"
@@ -132,7 +136,7 @@ def main(argv=None):
         parser.error(f"--cap {args.cap} is not supported: only --cap 1 gives a per-patient guarantee "
                      "without rescaling every mechanism's sensitivity, which is not implemented.")
 
-    tasks = [(a, 42 + s, args.cap) for a in args.arms for s in range(args.seeds)]
+    tasks = [(a, 42 + s, args.cap, args.cap_seed) for a in args.arms for s in range(args.seeds)]
     print(f"{len(tasks)} runs on {args.workers} workers", flush=True)
     rows, start = [], time.time()
     OUT_DIR.mkdir(parents=True, exist_ok=True)

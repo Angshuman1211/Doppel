@@ -6,9 +6,9 @@ degrees are only visible in AIM's stdout.
 
 1. **Budget-share ablation.** AIM takes its budget from the histograms over the non-core columns, which
    confounds any fidelity comparison against `dp_marginals` until it is measured. This refits at two
-   splits and reports mean JSD, which is the `0.250 vs 0.223` pair in the result document.
+   splits and reports mean JSD, which is the `0.250 vs 0.224` pair in the result document.
 2. **Selected clique degrees.** AIM prints the clique it measures each round. This captures that output
-   and counts one-way against two-way, which is the `260 / 122` pair.
+   and counts one-way against two-way, which is the table of clique degrees in the result document.
 
     python -m research.aim_diagnostics --seeds 10
 """
